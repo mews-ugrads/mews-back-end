@@ -35,6 +35,13 @@ Make sure you are in the MEWS virtual environment
 $ source ./mews-venv/bin/activate
 ```
 
+Set the correct password for the mySQL connection configuration files: `config/mews-app.json`. Be sure to not commit the raw password.
+```json
+{
+	"password": "INSERT_HERE"
+}
+```
+
 To start up the server:
 ```console
 ./app.py
