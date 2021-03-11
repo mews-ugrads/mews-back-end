@@ -44,7 +44,7 @@ Set the correct password for the mySQL connection configuration files: `config/m
 
 To start up the server:
 ```console
-./app.py
+$ ./app.py
 ```
 
 Deactivate to stop the virtual environment
