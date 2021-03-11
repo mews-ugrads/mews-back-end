@@ -3,6 +3,8 @@
 ### Imports
 
 from flask import Flask
+import mysql.connector
+import json
 import os
 
 
@@ -15,8 +17,19 @@ os.environ['FLASK_ENV'] = 'development'
 ### API Routes
 
 @app.route("/")
-def hello():
-    return "Hello World!"
+def test():
+    # Grab Config JSON
+    with open('config/mews-app.json') as f:
+        mewsAppConfig = json.load(f)
+
+    # Connect to DB
+    try:
+        cnx = mysql.connector.connect(**mewsAppConfig)
+    except mysql.connector.Error as err:
+        return "FAILED TO CONNECT!"
+    else:
+        cnx.close()
+        return "CONNECTED TO DB"
 
 
 ### Main Execution

@@ -1,0 +1,7 @@
+{
+  "user": "mews_app_user",
+  "password": "",
+  "host": "127.0.0.1",
+  "database": "mews_app",
+  "raise_on_warnings": true
+}
