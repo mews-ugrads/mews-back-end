@@ -19,6 +19,11 @@ Activate the virtual environment every time you work on this project
 $ source ./mews-venv/bin/activate
 ```
 
+To install dependencies after activating the virtual environment:
+```console
+$ pip install -r requirements.txt
+```
+
 Deactivate to stop the virtual environment
 ```console
 $ deactivate
