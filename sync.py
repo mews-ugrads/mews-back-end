@@ -26,7 +26,7 @@ def syncImages():
     try:
         mewsCnx = mysql.connector.connect(**mewsConfig)
     except mysql.connector.Error as err:
-        return jsonify(error='Could Not Connect to Database'), 404
+        return 1
 
     # Grab Last Sync and Format
     state = loadConfig(SYNC_CONFIG_FILEPATH)
@@ -34,13 +34,16 @@ def syncImages():
 
     # Query Mews DB
     mewsCursor = mewsCnx.cursor()
-    query = ("SELECT pic_id, original_img_filename, when_scraped FROM scraped_images WHERE when_scraped > %s")
+    query = ("SELECT url, image_url, reposts, replies, likes, when_posted, "
+    "related_text, ocr_text, when_scraped, original_img_dir, original_img_filename, pic_id FROM scraped_images WHERE when_scraped > %s LIMIT 1")
     mewsCursor.execute(query, (lastSync,))
 
-    # Print Info
-    for (pic_id, original_img_filename, when_scraped) in mewsCursor:
-        print("{}, {} was scraped on {}".format(pic_id, original_img_filename, when_scraped))
+    # Extract Variables
+    (post_url, image_url, reposts, replies, likes, when_posted, related_text, ocr_text, when_scraped, image_directory, image_filename, scrape_id) = mewsCursor.fetchone()
+    when_updated = when_scraped
 
+    # Disconnect from Mews DB
+    mewsCnx.close()
 
     # Grab Mews-App Config
     with open('config/mews-app.json') as f:
@@ -50,14 +53,40 @@ def syncImages():
     try:
         mewsAppCnx = mysql.connector.connect(**mewsAppConfig)
     except mysql.connector.Error as err:
-        return jsonify(error='Could Not Connect to Database'), 404
+        print(err)
+        return 1
 
-    # 
-    mewsCursor = mewsCnx.cursor()
-    query = ("INSERT INTO Posts pic_id, original_img_filename, when_scraped FROM scraped_images WHERE when_scraped > %s")
+    # Insert into Mews-App
+    data = {
+            'post_url': post_url,
+            'image_url': image_url,
+            'reposts': reposts,
+            'replies': replies,
+            'likes': likes,
+            'when_posted': when_posted,
+            'related_text': related_text,
+            'ocr_text': ocr_text,
+            'when_scraped': when_scraped,
+            'when_updated': when_updated,
+            'image_directory': image_directory,
+            'image_filename': image_filename,
+            'scrape_id': scrape_id
+            }
+    mewsAppCursor = mewsAppCnx.cursor()
+    query = ("INSERT INTO Posts "
+    "(post_url, image_url, reposts, replies, likes, when_posted, "
+    "related_text, ocr_text, when_scraped, when_updated, image_directory, image_filename, scrape_id) VALUES "
+    "(%(post_url)s, %(image_url)s, %(reposts)s, %(replies)s, %(likes)s, %(when_posted)s, %(related_text)s, "
+    "%(ocr_text)s, %(when_scraped)s, %(when_updated)s, %(image_directory)s, %(image_filename)s, %(scrape_id)s)")
 
-    mewsCnx.close()
-    return "DATA!"
+    try:
+        mewsAppCursor.execute(query, data)
+        mewsAppCnx.commit()
+    except mysql.connector.Error as err:
+        print(err)
+        return 1
+
+    mewsAppCnx.close()
 
 
 ### Main Execution
