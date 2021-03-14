@@ -34,6 +34,21 @@ def syncImages():
     for (pic_id, original_img_filename, when_scraped) in mewsCursor:
         print("{}, {} was scraped on {}".format(pic_id, original_img_filename, when_scraped))
 
+
+    # Grab Mews-App Config
+    with open('config/mews-app.json') as f:
+        mewsAppConfig = json.load(f)
+
+    # Connect to Mews-App DB
+    try:
+        mewsAppCnx = mysql.connector.connect(**mewsAppConfig)
+    except mysql.connector.Error as err:
+        return jsonify(error='Could Not Connect to Database'), 404
+
+    # 
+    mewsCursor = mewsCnx.cursor()
+    query = ("INSERT INTO Posts pic_id, original_img_filename, when_scraped FROM scraped_images WHERE when_scraped > %s")
+
     mewsCnx.close()
     return "DATA!"
 
