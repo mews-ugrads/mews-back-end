@@ -31,28 +31,30 @@ def syncImages():
     # Grab Last Sync and Format
     state = loadConfig(SYNC_CONFIG_FILEPATH)
     lastSync = state['lastSync']
+    thisSyncDatetime = str(datetime.now())
 
     # Query Mews DB
     mewsCursor = mewsCnx.cursor()
     query = ("SELECT url, image_url, reposts, replies, likes, when_posted, "
-    "related_text, ocr_text, when_scraped, original_img_dir, original_img_filename, pic_id FROM scraped_images WHERE when_scraped > %s LIMIT 3")
+    "related_text, ocr_text, when_scraped, original_img_dir, original_img_filename, pic_id FROM scraped_images WHERE when_scraped > %s")
     mewsCursor.execute(query, (lastSync,))
 
     # Grab Mews-App Config
     with open('config/mews-app.json') as f:
         mewsAppConfig = json.load(f)
 
+    # Connect to Mews-App DB
+    try:
+        mewsAppCnx = mysql.connector.connect(**mewsAppConfig)
+    except mysql.connector.Error as err:
+        print(err)
+        return 1
+
     # Extract Variables
     for result in mewsCursor.fetchall():
+
         (post_url, image_url, reposts, replies, likes, when_posted, related_text, ocr_text, when_scraped, image_directory, image_filename, scrape_id) = result
         when_updated = when_scraped
-
-        # Connect to Mews-App DB
-        try:
-            mewsAppCnx = mysql.connector.connect(**mewsAppConfig)
-        except mysql.connector.Error as err:
-            print(err)
-            return 1
 
         # Insert into Mews-App
         data = {
@@ -87,6 +89,12 @@ def syncImages():
     # Disconnect from Mews and Mews-App
     mewsCnx.close()
     mewsAppCnx.close()
+
+    # Update config file
+    state['lastSync'] = thisSyncDatetime
+    with open('config/sync.json', 'w') as f:
+        json.dump(state, f)
+
 
 
 ### Main Execution
