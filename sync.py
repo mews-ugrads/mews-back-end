@@ -8,6 +8,7 @@ import json
 import os
 
 ### Constants
+
 MEWS_CONFIG_FILEPATH = 'config/mews.json'
 SYNC_CONFIG_FILEPATH = 'config/sync.json'
 
