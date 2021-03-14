@@ -7,12 +7,20 @@ import mysql.connector
 import json
 import os
 
+### Constants
+
+MEWS_CONFIG_FILEPATH = 'config/mews.json'
+SYNC_CONFIG_FILEPATH = 'config/sync.json'
+
 ### Functions
+
+def loadConfig(filepath):
+    with open(filepath) as f:
+        return json.load(f)
 
 def syncImages():
     # Grab Mews Config
-    with open('config/mews.json') as f:
-        mewsConfig = json.load(f)
+    mewsConfig = loadConfig(MEWS_CONFIG_FILEPATH)
 
     # Connect to Mews DB
     try:
@@ -21,8 +29,7 @@ def syncImages():
         return jsonify(error='Could Not Connect to Database'), 404
 
     # Grab Last Sync and Format
-    with open('config/sync.json') as f:
-        state = json.load(f)
+    state = loadConfig(SYNC_CONFIG_FILEPATH)
     lastSync = state['lastSync']
 
     # Query Mews DB
