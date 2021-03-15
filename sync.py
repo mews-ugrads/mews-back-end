@@ -10,6 +10,7 @@ import os
 ### Constants
 
 MEWS_CONFIG_FILEPATH = 'config/mews.json'
+MEWSAPP_CONFIG_FILEPATH = 'config/mews-app.json'
 SYNC_CONFIG_FILEPATH = 'config/sync.json'
 
 ### Functions
@@ -40,8 +41,7 @@ def syncImages():
     mewsCursor.execute(query, (lastSync,))
 
     # Grab Mews-App Config
-    with open('config/mews-app.json') as f:
-        mewsAppConfig = json.load(f)
+    mewsAppConfig = loadConfig(MEWSAPP_CONFIG_FILEPATH)
 
     # Connect to Mews-App DB
     try:
