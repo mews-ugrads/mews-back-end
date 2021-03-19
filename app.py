@@ -66,7 +66,7 @@ def getTrending():
 
     # Query Mews-App DB
     mewsAppCursor = mewsAppCnx.cursor()
-    query = ("SELECT id, image_url, post_url, reposts, replies, likes, when_posted FROM Posts "
+    query = ("SELECT id, image_url, post_url, reposts, replies, likes, when_posted, user_id FROM Posts "
     "WHERE when_posted BETWEEN %s AND %s "
     "ORDER BY %s DESC LIMIT %s, %s;")
     mewsAppCursor.execute(query, (lower_dt, upper_dt, trendingEquation, skip, amount))
@@ -74,7 +74,7 @@ def getTrending():
     # Extract Information
     trendingPosts = []
     for result in mewsAppCursor.fetchall():
-        (post_id, image_url, post_url, reposts, replies, likes, when_posted) = result
+        (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id) = result
         post = {
                 'id': post_id,
                 'image_url': image_url,
@@ -82,7 +82,8 @@ def getTrending():
                 'reposts': reposts,
                 'replies': replies,
                 'likes': likes,
-                'when_posted': when_posted
+                'when_posted': when_posted,
+                'user_id': user_id
                 }
         trendingPosts.append(post)
 
