@@ -34,7 +34,7 @@ def loadConfig(filepath):
 @app.route('/posts/trending', methods=['GET'])
 def getTrending():
     """
-    @route   GET /trending
+    @route   GET /posts/trending
     @desc    Returns the trending posts within timeline
     --
     @param   skip   - number of posts to skip (int)
@@ -89,6 +89,15 @@ def getTrending():
     mewsAppCnx.close()
 
     return jsonify(trendingPosts)
+
+@app.route('/posts/<pid>', methods=['GET'])
+def getPost():
+    """
+    @route   GET /posts/<pid>
+    @desc    Returns the specified post
+    --
+    @return  post
+    """
 
 
 ### Main Execution
