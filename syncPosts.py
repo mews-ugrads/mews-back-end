@@ -19,7 +19,7 @@ def loadConfig(filepath):
     with open(filepath) as f:
         return json.load(f)
 
-def syncImages():
+def syncPosts():
     # Grab Mews Config
     mewsConfig = loadConfig(MEWS_CONFIG_FILEPATH)
 
@@ -100,4 +100,4 @@ def syncImages():
 ### Main Execution
 
 if __name__ == '__main__':
-    syncImages()
+    syncPosts()

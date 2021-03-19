@@ -31,7 +31,7 @@ def loadConfig(filepath):
 
 ### API Routes
 
-@app.route('/trending', methods=['GET'])
+@app.route('/posts/trending', methods=['GET'])
 def getTrending():
     """
     @route   GET /trending
