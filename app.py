@@ -91,13 +91,46 @@ def getTrending():
     return jsonify(trendingPosts)
 
 @app.route('/posts/<pid>', methods=['GET'])
-def getPost():
+def getPost(pid):
     """
     @route   GET /posts/<pid>
     @desc    Returns the specified post
     --
     @return  post
     """
+    # Grab Mews-App Config
+    mewsAppConfig = loadConfig(MEWSAPP_CONFIG_FILEPATH)
+
+    # Connect to Mews-App DB
+    try:
+        mewsAppCnx = mysql.connector.connect(**mewsAppConfig)
+    except mysql.connector.Error as err:
+        return jsonify({'error': 'Could not connect to Mews-App DB'}), 400
+
+    # Query Mews-App DB
+    mewsAppCursor = mewsAppCnx.cursor()
+    query = ("SELECT id, image_url, post_url, reposts, replies, likes, when_posted FROM Posts "
+    "WHERE id = %s;")
+    mewsAppCursor.execute(query, (pid,))
+
+    # Extract Information
+    result = mewsAppCursor.fetchone()
+    if result is None:
+        return jsonify({'error': 'Could not execute'}), 400
+    (post_id, image_url, post_url, reposts, replies, likes, when_posted) = result
+    post = {
+            'id': post_id,
+            'image_url': image_url,
+            'post_url': post_url,
+            'reposts': reposts,
+            'replies': replies,
+            'likes': likes,
+            'when_posted': when_posted
+            }
+
+    mewsAppCnx.close()
+
+    return jsonify(post)
 
 
 ### Main Execution
