@@ -109,7 +109,7 @@ def getPost(pid):
 
     # Query Mews-App DB
     mewsAppCursor = mewsAppCnx.cursor()
-    query = ("SELECT id, image_url, post_url, reposts, replies, likes, when_posted FROM Posts "
+    query = ("SELECT id, image_url, post_url, reposts, replies, likes, when_posted, user_id FROM Posts "
     "WHERE id = %s;")
     mewsAppCursor.execute(query, (pid,))
 
@@ -118,7 +118,7 @@ def getPost(pid):
     if result is None:
         return jsonify({'error': 'Could not execute'}), 400
 
-    (post_id, image_url, post_url, reposts, replies, likes, when_posted) = result
+    (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id) = result
     post = {
             'id': post_id,
             'image_url': image_url,
@@ -126,7 +126,8 @@ def getPost(pid):
             'reposts': reposts,
             'replies': replies,
             'likes': likes,
-            'when_posted': when_posted
+            'when_posted': when_posted,
+            'user_id': user_id
             }
 
     mewsAppCnx.close()
