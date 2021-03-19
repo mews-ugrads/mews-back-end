@@ -117,6 +117,7 @@ def getPost(pid):
     result = mewsAppCursor.fetchone()
     if result is None:
         return jsonify({'error': 'Could not execute'}), 400
+
     (post_id, image_url, post_url, reposts, replies, likes, when_posted) = result
     post = {
             'id': post_id,
