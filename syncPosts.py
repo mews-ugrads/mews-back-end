@@ -51,8 +51,12 @@ def syncPosts():
         print(err)
         return 1
 
+    # Print
+    execution = mewsCursor.fetchall()
+    print(f'Selected {len(execution)} rows in mews:scraped_images')
+
     # Extract Variables
-    for result in mewsCursor.fetchall():
+    for result in execution:
 
         (post_url, image_url, reposts, replies, likes, when_posted, related_text, ocr_text, when_scraped, image_directory, image_filename, scrape_id) = result
         when_updated = when_scraped
