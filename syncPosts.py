@@ -34,6 +34,8 @@ def syncPosts():
     state = loadConfig(SYNC_CONFIG_FILEPATH)
     lastSync = state['lastSync']
     thisSyncDatetime = str(datetime.now())
+    print(f'Last Sync Datetime: {lastSync}')
+    print(f'This Sync DateTime: {thisSyncDatetime}')
 
     # Query Mews DB
     mewsCursor = mewsCnx.cursor()
@@ -94,10 +96,12 @@ def syncPosts():
             return 1
 
     # Disconnect from Mews and Mews-App
+    print('Finished Syncing')
     mewsCnx.close()
     mewsAppCnx.close()
 
     # Update config file
+    print(f'Writing This Sync DateTime: {thisSyncDatetime}')
     state['lastSync'] = thisSyncDatetime
     with open('config/sync.json', 'w') as f:
         json.dump(state, f)
