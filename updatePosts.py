@@ -51,8 +51,12 @@ def updatePosts():
         print(err)
         return 1
 
+    # Print
+    execution = mewsCursor.fetchall()
+    print(f'Selected {len(execution)} rows in mews:scraped_images')
+
     # Extract Variables
-    for result in mewsCursor.fetchall():
+    for result in execution:
 
         (scrape_id, reposts, replies, likes, when_updated) = result
 
