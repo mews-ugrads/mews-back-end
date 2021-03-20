@@ -12,6 +12,7 @@ import os
 MEWS_CONFIG_FILEPATH = 'config/mews.json'
 MEWSAPP_CONFIG_FILEPATH = 'config/mews-app.json'
 SYNC_CONFIG_FILEPATH = 'config/sync.json'
+UPDATE_CONFIG_FILEPATH = 'config/updatePosts.json'
 
 ### Functions
 
@@ -19,7 +20,7 @@ def loadConfig(filepath):
     with open(filepath) as f:
         return json.load(f)
 
-def syncPosts():
+def updatePosts():
     # Grab Mews Config
     mewsConfig = loadConfig(MEWS_CONFIG_FILEPATH)
 
@@ -31,17 +32,16 @@ def syncPosts():
         return 1
 
     # Grab Last Sync and Format
-    state = loadConfig(SYNC_CONFIG_FILEPATH)
-    lastSync = state['lastSync']
-    thisSyncDatetime = str(datetime.now())
-    print(f'Last Sync Datetime: {lastSync}')
-    print(f'This Sync DateTime: {thisSyncDatetime}')
+    state = loadConfig(UPDATE_CONFIG_FILEPATH)
+    lastUpdate = state['lastUpdate']
+    thisUpdateDatetime = str(datetime.now())
+    print(f'Last Update Datetime: {lastUpdate}')
+    print(f'This Update DateTime: {thisUpdateDatetime}')
 
     # Query Mews DB
     mewsCursor = mewsCnx.cursor()
-    query = ("SELECT url, image_url, reposts, replies, likes, when_posted, "
-    "related_text, ocr_text, when_scraped, original_img_dir, original_img_filename, pic_id FROM scraped_images WHERE when_scraped > %s")
-    mewsCursor.execute(query, (lastSync,))
+    query = ("SELECT pic_id, reposts, replies, likes, when_scraped2 FROM scraped_images WHERE when_scraped2 > %s")
+    mewsCursor.execute(query, (lastUpdate,))
 
     # Grab Mews-App Config
     mewsAppConfig = loadConfig(MEWSAPP_CONFIG_FILEPATH)
@@ -60,33 +60,20 @@ def syncPosts():
     # Extract Variables
     for result in execution:
 
-        (post_url, image_url, reposts, replies, likes, when_posted, related_text, ocr_text, when_scraped, image_directory, image_filename, scrape_id) = result
-        when_updated = when_scraped
+        (scrape_id, reposts, replies, likes, when_updated) = result
 
         # Insert into Mews-App
-        # @FIXME: replace user_id to non-hard-coded
         data = {
-                'post_url': post_url,
-                'image_url': image_url,
                 'reposts': reposts,
                 'replies': replies,
                 'likes': likes,
-                'when_posted': when_posted,
-                'related_text': related_text,
-                'ocr_text': ocr_text,
-                'when_scraped': when_scraped,
                 'when_updated': when_updated,
-                'image_directory': image_directory,
-                'image_filename': image_filename,
                 'scrape_id': scrape_id,
-                'user_id': 1
                 }
         mewsAppCursor = mewsAppCnx.cursor()
-        query = ("INSERT INTO Posts "
-        "(post_url, image_url, reposts, replies, likes, when_posted, "
-        "related_text, ocr_text, when_scraped, when_updated, image_directory, image_filename, scrape_id, user_id) VALUES "
-        "(%(post_url)s, %(image_url)s, %(reposts)s, %(replies)s, %(likes)s, %(when_posted)s, %(related_text)s, "
-        "%(ocr_text)s, %(when_scraped)s, %(when_updated)s, %(image_directory)s, %(image_filename)s, %(scrape_id)s, %(user_id)s)")
+        query = ("UPDATE Posts "
+        "SET reposts = %(reposts)s, replies = %(replies)s, likes = %(replies)s, when_updated = %(when_updated)s "
+        "WHERE scrape_id = %(scrape_id)s;")
 
         try:
             mewsAppCursor.execute(query, data)
@@ -96,14 +83,14 @@ def syncPosts():
             return 1
 
     # Disconnect from Mews and Mews-App
-    print('Finished Syncing')
+    print('Finished Updating')
     mewsCnx.close()
     mewsAppCnx.close()
 
     # Update config file
-    print(f'Writing This Sync DateTime: {thisSyncDatetime}')
-    state['lastSync'] = thisSyncDatetime
-    with open('config/sync.json', 'w') as f:
+    print(f'Writing This Update DateTime: {thisUpdateDatetime}')
+    state['lastUpdate'] = thisUpdateDatetime
+    with open(UPDATE_CONFIG_FILEPATH, 'w') as f:
         json.dump(state, f)
 
 
@@ -111,4 +98,4 @@ def syncPosts():
 ### Main Execution
 
 if __name__ == '__main__':
-    syncPosts()
+    updatePosts()
