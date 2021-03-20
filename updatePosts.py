@@ -28,6 +28,7 @@ def updatePosts():
     try:
         mewsCnx = mysql.connector.connect(**mewsConfig)
     except mysql.connector.Error as err:
+        print(err)
         return 1
 
     # Grab Last Sync and Format
