@@ -35,6 +35,8 @@ def updatePosts():
     state = loadConfig(UPDATE_CONFIG_FILEPATH)
     lastUpdate = state['lastUpdate']
     thisUpdateDatetime = str(datetime.now())
+    print(f'Last Update Datetime: {lastUpdate}')
+    print(f'This Update DateTime: {thisUpdateDatetime}')
 
     # Query Mews DB
     mewsCursor = mewsCnx.cursor()
@@ -81,10 +83,12 @@ def updatePosts():
             return 1
 
     # Disconnect from Mews and Mews-App
+    print('Finished Updating')
     mewsCnx.close()
     mewsAppCnx.close()
 
     # Update config file
+    print(f'Writing This Update DateTime: {thisUpdateDatetime}')
     state['lastUpdate'] = thisUpdateDatetime
     with open(UPDATE_CONFIG_FILEPATH, 'w') as f:
         json.dump(state, f)
