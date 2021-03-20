@@ -57,6 +57,7 @@ def syncPosts():
         when_updated = when_scraped
 
         # Insert into Mews-App
+        # @FIXME: replace user_id to non-hard-coded
         data = {
                 'post_url': post_url,
                 'image_url': image_url,
@@ -70,14 +71,15 @@ def syncPosts():
                 'when_updated': when_updated,
                 'image_directory': image_directory,
                 'image_filename': image_filename,
-                'scrape_id': scrape_id
+                'scrape_id': scrape_id,
+                'user_id': 1
                 }
         mewsAppCursor = mewsAppCnx.cursor()
         query = ("INSERT INTO Posts "
         "(post_url, image_url, reposts, replies, likes, when_posted, "
-        "related_text, ocr_text, when_scraped, when_updated, image_directory, image_filename, scrape_id) VALUES "
+        "related_text, ocr_text, when_scraped, when_updated, image_directory, image_filename, scrape_id, user_id) VALUES "
         "(%(post_url)s, %(image_url)s, %(reposts)s, %(replies)s, %(likes)s, %(when_posted)s, %(related_text)s, "
-        "%(ocr_text)s, %(when_scraped)s, %(when_updated)s, %(image_directory)s, %(image_filename)s, %(scrape_id)s)")
+        "%(ocr_text)s, %(when_scraped)s, %(when_updated)s, %(image_directory)s, %(image_filename)s, %(scrape_id)s, %(user_id)s)")
 
         try:
             mewsAppCursor.execute(query, data)

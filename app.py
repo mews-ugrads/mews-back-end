@@ -34,7 +34,7 @@ def loadConfig(filepath):
 @app.route('/posts/trending', methods=['GET'])
 def getTrending():
     """
-    @route   GET /trending
+    @route   GET /posts/trending
     @desc    Returns the trending posts within timeline
     --
     @param   skip   - number of posts to skip (int)
@@ -66,7 +66,7 @@ def getTrending():
 
     # Query Mews-App DB
     mewsAppCursor = mewsAppCnx.cursor()
-    query = ("SELECT id, image_url, post_url, reposts, replies, likes, when_posted FROM Posts "
+    query = ("SELECT id, image_url, post_url, reposts, replies, likes, when_posted, user_id FROM Posts "
     "WHERE when_posted BETWEEN %s AND %s "
     "ORDER BY %s DESC LIMIT %s, %s;")
     mewsAppCursor.execute(query, (lower_dt, upper_dt, trendingEquation, skip, amount))
@@ -74,7 +74,7 @@ def getTrending():
     # Extract Information
     trendingPosts = []
     for result in mewsAppCursor.fetchall():
-        (post_id, image_url, post_url, reposts, replies, likes, when_posted) = result
+        (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id) = result
         post = {
                 'id': post_id,
                 'image_url': image_url,
@@ -82,13 +82,58 @@ def getTrending():
                 'reposts': reposts,
                 'replies': replies,
                 'likes': likes,
-                'when_posted': when_posted
+                'when_posted': when_posted,
+                'user_id': user_id
                 }
         trendingPosts.append(post)
 
     mewsAppCnx.close()
 
     return jsonify(trendingPosts)
+
+@app.route('/posts/<pid>', methods=['GET'])
+def getPost(pid):
+    """
+    @route   GET /posts/<pid>
+    @desc    Returns the specified post
+    --
+    @return  post
+    """
+    # Grab Mews-App Config
+    mewsAppConfig = loadConfig(MEWSAPP_CONFIG_FILEPATH)
+
+    # Connect to Mews-App DB
+    try:
+        mewsAppCnx = mysql.connector.connect(**mewsAppConfig)
+    except mysql.connector.Error as err:
+        return jsonify({'error': 'Could not connect to Mews-App DB'}), 400
+
+    # Query Mews-App DB
+    mewsAppCursor = mewsAppCnx.cursor()
+    query = ("SELECT id, image_url, post_url, reposts, replies, likes, when_posted, user_id FROM Posts "
+    "WHERE id = %s;")
+    mewsAppCursor.execute(query, (pid,))
+
+    # Extract Information
+    result = mewsAppCursor.fetchone()
+    if result is None:
+        return jsonify({'error': 'Could not execute'}), 400
+
+    (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id) = result
+    post = {
+            'id': post_id,
+            'image_url': image_url,
+            'post_url': post_url,
+            'reposts': reposts,
+            'replies': replies,
+            'likes': likes,
+            'when_posted': when_posted,
+            'user_id': user_id
+            }
+
+    mewsAppCnx.close()
+
+    return jsonify(post)
 
 
 ### Main Execution
