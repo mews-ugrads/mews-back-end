@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 ### Constants
 
-MEWS_CONFIG_FILEPATH = 'config/mews.json'
+MEWS_CONFIG_FILEPATH = 'config/inter-mews.json'
 APP_CONFIG_FILEPATH = 'config/mews-app.json'
 SYNC_CONFIG_FILEPATH = 'config/sync.json'
 
@@ -320,41 +320,34 @@ def insertUser(cursor, platform, username):
 
     return getInsertedId(cursor)
 
-def pullPosts(cursor, after):
+def pullPosts(cursor):
     # Query Structure
     sql = '''
-    (
-        SELECT
-            url,
-            image_url,
-            reposts,
-            replies,
-            likes,
-            when_posted,
-            when_scraped,
-            when_scraped2,
-            related_text,
-            ocr_text,
-            original_img_dir,
-            original_img_filename,
-            pic_id,
-            hashtags,
-            platform,
-            platform_username
-        FROM
-            scraped_images
-        WHERE
-            when_scraped > %(after)s
-    )
+    SELECT
+        url,
+        image_url,
+        reposts,
+        replies,
+        likes,
+        when_posted,
+        when_scraped,
+        when_scraped2,
+        related_text,
+        ocr_text,
+        original_img_dir,
+        original_img_filename,
+        pic_id,
+        hashtags,
+        platform,
+        platform_username
+    FROM
+        mews.scraped_images AS src_post
+    WHERE
+        src_post.pic_id <> ALL(SELECT scrape_id FROM mews_app.Posts)
     '''
 
-    # Query Arguments
-    args = {
-        'after': after
-    }
-
     # Run Query
-    cursor.execute(sql, args)
+    cursor.execute(sql)
 
     # Fetch Post Data
     post = cursor.fetchone()
@@ -391,16 +384,11 @@ def syncImages():
     appConfig = loadConfig(APP_CONFIG_FILEPATH)
     appCnx = connectSQL(appConfig)
 
-    # Grab Last Sync and Format
-    state = loadConfig(SYNC_CONFIG_FILEPATH)
-    lastSync = state['lastSync']
-    state['lastSync'] = str(datetime.now())
-
     # Pull Info
     appCursor = appCnx.cursor(dictionary=True)
     mewsCursor = mewsCnx.cursor(dictionary=True)
     try:
-        posts = pullPosts(mewsCursor, lastSync)
+        posts = pullPosts(mewsCursor)
         for post in tqdm(posts, leave=False):
             insertPost(appCursor, post)
             appCnx.commit()
@@ -408,12 +396,8 @@ def syncImages():
         mewsCnx.close()
         appCnx.close()
 
-
     mewsCnx.close()
     appCnx.close()
-
-    with open(SYNC_CONFIG_FILEPATH, 'w') as f:
-        json.dump(state, f)
 
 ### Main Execution
 
