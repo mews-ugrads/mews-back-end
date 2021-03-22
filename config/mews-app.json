@@ -3,5 +3,7 @@
   "password": "",
   "host": "127.0.0.1",
   "database": "mews_app",
-  "raise_on_warnings": true
+  "raise_on_warnings": true,
+  "charset": "utf8mb4",
+  "collation": "utf8mb4_general_ci"
 }

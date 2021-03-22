@@ -25,6 +25,7 @@ def connectSQL(config):
     try:
         return mysql.connector.connect(**config)
     except mysql.connector.Error:
+        raise
         return None
 
 def getInsertedId(cursor):
@@ -363,14 +364,14 @@ def pullPosts(cursor):
             'when_posted': post['when_posted'],
             'when_scraped': post['when_scraped'],
             'when_updated': post['when_scraped2'],
-            'related_text': post['related_text'],
+            'related_text': post['related_text'].encode().decode('unicode_escape'),
             'ocr_text': post['ocr_text'],
             'image_directory': post['original_img_dir'],
             'image_filename': post['original_img_filename'],
             'scrape_id': post['pic_id'],
-            'hashtags': set(re.split(r',| |, |\|', post['hashtags'])),
+            'hashtags': set(hashtag.encode().decode('unicode_escape') for hashtag in re.split(r',| |, |\|', post['hashtags'])),
             'platform': post['platform'],
-            'username': post['platform_username']
+            'username': post['platform_username'].encode().decode('unicode_escape')
         } 
 
         yield results
@@ -395,6 +396,7 @@ def syncImages():
     except:
         mewsCnx.close()
         appCnx.close()
+        raise
 
     mewsCnx.close()
     appCnx.close()
