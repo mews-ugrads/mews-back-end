@@ -403,7 +403,7 @@ def syncImages():
         posts = pullPosts(mewsCursor, lastSync)
         for post in tqdm(posts, leave=False):
             insertPost(appCursor, post)
-            # appCnx.commit()
+            appCnx.commit()
     except:
         mewsCnx.close()
         appCnx.close()
