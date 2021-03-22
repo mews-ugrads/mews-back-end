@@ -399,10 +399,15 @@ def syncImages():
     # Pull Info
     appCursor = appCnx.cursor(dictionary=True)
     mewsCursor = mewsCnx.cursor(dictionary=True)
-    posts = pullPosts(mewsCursor, lastSync)
-    for post in tqdm(posts, leave=False):
-        insertPost(appCursor, post)
-        # appCnx.commit()
+    try:
+        posts = pullPosts(mewsCursor, lastSync)
+        for post in tqdm(posts, leave=False):
+            insertPost(appCursor, post)
+            # appCnx.commit()
+    except:
+        mewsCnx.close()
+        appCnx.close()
+
 
     mewsCnx.close()
     appCnx.close()
