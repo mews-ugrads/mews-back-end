@@ -357,29 +357,30 @@ def pullPosts(cursor, after):
     cursor.execute(sql, args)
 
     # Fetch Post Data
-    posts = cursor.fetchall()
-    
-    # Transform Post Data
-    results = [{
-        'post_url': post['url'], 
-        'image_url': post['image_url'], 
-        'reposts': post['reposts'],
-        'replies': post['replies'],
-        'likes': post['likes'], 
-        'when_posted': post['when_posted'],
-        'when_scraped': post['when_scraped'],
-        'when_updated': post['when_scraped2'],
-        'related_text': post['related_text'],
-        'ocr_text': post['ocr_text'],
-        'image_directory': post['original_img_dir'],
-        'image_filename': post['original_img_filename'],
-        'scrape_id': post['pic_id'],
-        'hashtags': set(re.split(r',| |, |\|', post['hashtags'])),
-        'platform': post['platform'],
-        'username': post['platform_username']
-    } for post in posts]
+    post = cursor.fetchone()
+    while post is not None:
+        post = cursor.fetchone()
+         # Transform Post Data
+        results = {
+            'post_url': post['url'], 
+            'image_url': post['image_url'], 
+            'reposts': post['reposts'],
+            'replies': post['replies'],
+            'likes': post['likes'], 
+            'when_posted': post['when_posted'],
+            'when_scraped': post['when_scraped'],
+            'when_updated': post['when_scraped2'],
+            'related_text': post['related_text'],
+            'ocr_text': post['ocr_text'],
+            'image_directory': post['original_img_dir'],
+            'image_filename': post['original_img_filename'],
+            'scrape_id': post['pic_id'],
+            'hashtags': set(re.split(r',| |, |\|', post['hashtags'])),
+            'platform': post['platform'],
+            'username': post['platform_username']
+        } 
 
-    return results
+        yield results
 
 def syncImages():
     # Connect to Mews DB
@@ -393,11 +394,12 @@ def syncImages():
     # Grab Last Sync and Format
     state = loadConfig(SYNC_CONFIG_FILEPATH)
     lastSync = state['lastSync']
+    state['lastSync'] = str(datetime.now())
 
     # Pull Info
     appCursor = appCnx.cursor(dictionary=True)
     mewsCursor = mewsCnx.cursor(dictionary=True)
-    posts = pullPosts(mewsCursor, datetime(2021, 3, 18))
+    posts = pullPosts(mewsCursor, lastSync)
     for post in tqdm(posts, leave=False):
         insertPost(appCursor, post)
         # appCnx.commit()
@@ -405,6 +407,8 @@ def syncImages():
     mewsCnx.close()
     appCnx.close()
 
+    with open(SYNC_CONFIG_FILEPATH, 'w') as f:
+        json.dump(state, f)
 
 ### Main Execution
 
