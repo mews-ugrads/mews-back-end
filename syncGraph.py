@@ -9,10 +9,6 @@ import os
 
 ### Constants
 
-MEWS_CONFIG_FILEPATH = 'config/mews.json'
-MEWSAPP_CONFIG_FILEPATH = 'config/mews-app.json'
-
-MEWS_CONFIG_FILEPATH = 'config/inter-mews.json'
 APP_CONFIG_FILEPATH = 'config/mews-app.json'
 SYNC_GRAPH_CONFIG_FILEPATH = 'config/syncGraph.json'
 
@@ -36,13 +32,15 @@ def connectSQL(config):
         raise
         return None
 
-##
-# @desc    converts txt file to graph
-# --
-# @param   fpath  file path for txt file; path has format "u;v;method;weight;x;x;x;"
-# @return  g      graph in format of {v1: { e1: [w1, w2, w3, w4], e2: [...] }, v2: ...}
-##
+
 def load_txt(fpath):
+    '''
+    @desc    converts txt file to graph
+    --
+    @param   fpath  file path for txt file; path has format "u;v;method;weight;x;x;x;"
+    @return  g      graph in format of {v1: { e1: [w1, w2, w3, w4], e2: [...] }, v2: ...}
+    '''
+
     # Initialize Graph
     g = {}
 
@@ -114,6 +112,8 @@ def insertPostRelatedness(cursor, source, target, fw, fm, rw, rm, sw, sm, ow, om
         JOIN (SELECT id as post2_id FROM Posts WHERE image_filename LIKE '%(target)s.jpg') as id2
     ;
     '''
+    # @TODO: Remove print
+    print(f'Inserting {source}-{target}: {fw}-{rw}-{sw}-{ow}')
 
     # Query Arguments
     args = {
@@ -138,15 +138,10 @@ def syncGraph(fpath):
     # Load in Text File
     g = load_txt(fpath)
 
-    # Grab Mews-App Config
-    mewsAppConfig = loadConfig(MEWSAPP_CONFIG_FILEPATH)
-
-    # Connect to Mews-App DB
-    try:
-        mewsAppCnx = mysql.connector.connect(**mewsAppConfig)
-    except mysql.connector.Error as err:
-        print(err)
-        return 1
+    # Connect to Mews-App
+    appConfig = loadConfig(APP_CONFIG_FILEPATH)
+    appCnx = connectSQL(appConfig)
+    appCursor = appCnx.cursor(dictionary=True)
 
     # Insert Edges into DB
     for source in g:
@@ -163,10 +158,11 @@ def syncGraph(fpath):
             om = ''
 
             # Insert into Post Relatedness
-            insertPostRelatedness(mewsAppCursor, source, target, fw, fm, rw, rm, sw, sm, ow, om)
+            insertPostRelatedness(appCursor, source, target, fw, fm, rw, rm, sw, sm, ow, om)
+            appCnx.commit()
 
     # Disconnect from Mews-App
-    mewsAppCnx.close()
+    appCnx.close()
 
 
 ### Main Execution
