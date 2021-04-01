@@ -11,7 +11,9 @@ import os
 
 MEWS_CONFIG_FILEPATH = 'config/mews.json'
 MEWSAPP_CONFIG_FILEPATH = 'config/mews-app.json'
-SYNC_CONFIG_FILEPATH = 'config/sync.json'
+
+MEWS_CONFIG_FILEPATH = 'config/inter-mews.json'
+APP_CONFIG_FILEPATH = 'config/mews-app.json'
 SYNC_GRAPH_CONFIG_FILEPATH = 'config/syncGraph.json'
 
 NUM_METHODS = 4
@@ -27,6 +29,12 @@ def loadConfig(filepath):
     with open(filepath) as f:
         return json.load(f)
 
+def connectSQL(config):
+    try:
+        return mysql.connector.connect(**config)
+    except mysql.connector.Error:
+        raise
+        return None
 
 ##
 # @desc    converts txt file to graph
@@ -77,6 +85,53 @@ def load_txt(fpath):
     f.close()
     return g
 
+def insertPostRelatedness(cursor, source, target, fw, fm, rw, rm, sw, sm, ow, om):
+    '''
+    @desc   Insert information into Post Relatedness
+    --
+    @param  cursor  cursor for mysql.connector
+    @param  source  img filename of 1st post (without .jpg)
+    @param  target  img filename of 2nd post (without .jpg)
+    @param  fw      full image query weight
+    @param  fm      full image query metadata
+    @param  rw      related text weight
+    @param  rm      related text metadata
+    @param  sw      subimage weight
+    @param  sm      subimage metadata
+    @param  ow      ocr weight
+    @param  om      ocr metadata
+    '''
+
+    # Query Structure
+    sql = '''
+    INSERT INTO PostRelatedness
+        (post1_id, post2_id, full_img_wt, full_img_meta, rel_txt_wt, 
+        rel_txt_meta, sub_img_wt, sub_img_meta, ocr_wt, ocr_meta)
+    SELECT post1_id, post2_id, %(full_img_weight)s as weight, %(fw)s as full_img_wt, %(fm)s as full_img_meta,
+    %(rw)s as rel_txt_wt, %(rm)s as rel_txt_meta, %(sw)s as sub_img_wt, %(sm)s as sub_img_meta,
+    %(ow)s as ocr_wt, %(om)s as ocr_meta
+        FROM (SELECT id as post1_id FROM Posts WHERE image_filename LIKE '%(source)s.jpg') as id1
+        JOIN (SELECT id as post2_id FROM Posts WHERE image_filename LIKE '%(target)s.jpg') as id2
+    ;
+    '''
+
+    # Query Arguments
+    args = {
+        'source': source,
+        'target': target,
+        'fw': fw,
+        'fm': fm,
+        'rw': rw,
+        'rm': rm,
+        'sw': sw,
+        'sm': sm,
+        'ow': ow,
+        'om': om
+    }
+
+    # Run Query
+    cursor.execute(sql, args)  
+
 
 def syncGraph(fpath):
 
@@ -97,33 +152,21 @@ def syncGraph(fpath):
     for source in g:
         for target in g[source]:
 
-            data = {
-                    'source': source,
-                    'target': target,
-                    'full_img_weight': g[source][target][FULL_IMG],
-                    'rel_txt_weight': g[source][target][REL_TXT],
-                    'sub_img_weight': g[source][target][SUB_IMG],
-                    'ocr_weight': g[source][target][OCR]
-                    }
+            # Grab Weights and Metadata
+            fw = g[source][target][FULL_IMG]
+            fm = ''
+            rw = g[source][target][REL_TXT]
+            rm = ''
+            sw = g[source][target][SUB_IMG]
+            sm = ''
+            ow = g[source][target][OCR]
+            om = ''
 
-            # Insert into Mews-App:PostRelatedness
-            # @TODO: Insert real weights
-            mewsAppCursor = mewsAppCnx.cursor()
-            query = ("INSERT INTO PostRelatedness "
-            "(post1_id, post2_id, weight) "
-            "SELECT post1_id, post2_id, %(full_img_weight)s as weight "
-            "FROM (SELECT id as post1_id FROM Posts WHERE image_filename LIKE '%(source)s.jpg') as id1 "
-            "JOIN (SELECT id as post2_id FROM Posts WHERE image_filename LIKE '%(target)s.jpg') as id2;")
+            # Insert into Post Relatedness
+            insertPostRelatedness(mewsAppCursor, source, target, fw, fm, rw, rm, sw, sm, ow, om)
 
-            try:
-                mewsAppCursor.execute(query, data)
-                mewsAppCnx.commit()
-            except mysql.connector.Error as err:
-                print(err)
-                return 1
-
-        # Disconnect from Mews-App
-        mewsAppCnx.close()
+    # Disconnect from Mews-App
+    mewsAppCnx.close()
 
 
 ### Main Execution
