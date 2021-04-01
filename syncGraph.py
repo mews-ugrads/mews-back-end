@@ -42,6 +42,8 @@ def load_txt(fpath):
     '''
 
     # Initialize Graph
+    # @TODO: Remove print
+    print('Loading in Graph')
     g = {}
 
     # Open File
@@ -80,6 +82,9 @@ def load_txt(fpath):
         if method == "ocr":
             g[source][target][OCR] += weight
 
+    # @TODO: Remove print
+    print('Finished Loading in Graph')
+
     f.close()
     return g
 
@@ -105,11 +110,11 @@ def insertPostRelatedness(cursor, source, target, fw, fm, rw, rm, sw, sm, ow, om
     INSERT INTO PostRelatedness
         (post1_id, post2_id, full_img_wt, full_img_meta, rel_txt_wt, 
         rel_txt_meta, sub_img_wt, sub_img_meta, ocr_wt, ocr_meta)
-    SELECT post1_id, post2_id, %(full_img_weight)s as weight, %(fw)s as full_img_wt, %(fm)s as full_img_meta,
-    %(rw)s as rel_txt_wt, %(rm)s as rel_txt_meta, %(sw)s as sub_img_wt, %(sm)s as sub_img_meta,
-    %(ow)s as ocr_wt, %(om)s as ocr_meta
-        FROM (SELECT id as post1_id FROM Posts WHERE image_filename LIKE '%(source)s.jpg') as id1
-        JOIN (SELECT id as post2_id FROM Posts WHERE image_filename LIKE '%(target)s.jpg') as id2
+    SELECT post1_id, post2_id, %(fw)s as full_img_wt, '%(fm)s' as full_img_meta,
+    %(rw)s as rel_txt_wt, '%(rm)s' as rel_txt_meta, %(sw)s as sub_img_wt, '%(sm)s' as sub_img_meta,
+    %(ow)s as ocr_wt, '%(om)s' as ocr_meta 
+        FROM (SELECT id as post1_id FROM Posts WHERE image_filename = %(s)s LIMIT 1) as id1 
+        JOIN (SELECT id as post2_id FROM Posts WHERE image_filename = %(t)s LIMIT 1) as id2
     ;
     '''
     # @TODO: Remove print
@@ -117,8 +122,8 @@ def insertPostRelatedness(cursor, source, target, fw, fm, rw, rm, sw, sm, ow, om
 
     # Query Arguments
     args = {
-        'source': source,
-        'target': target,
+        's': source + '.jpg',
+        't': target + '.jpg',
         'fw': fw,
         'fm': fm,
         'rw': rw,
@@ -130,7 +135,11 @@ def insertPostRelatedness(cursor, source, target, fw, fm, rw, rm, sw, sm, ow, om
     }
 
     # Run Query
-    cursor.execute(sql, args)  
+
+    try:
+        cursor.execute(sql, args)  
+    except mysql.connector.Error:
+        raise
 
 
 def syncGraph(fpath):
@@ -158,7 +167,11 @@ def syncGraph(fpath):
             om = ''
 
             # Insert into Post Relatedness
-            insertPostRelatedness(appCursor, source, target, fw, fm, rw, rm, sw, sm, ow, om)
+            try:
+                insertPostRelatedness(appCursor, source, target, fw, fm, rw, rm, sw, sm, ow, om)
+            except Exception as ex:
+                print(ex)
+                continue
             appCnx.commit()
 
     # Disconnect from Mews-App
@@ -168,4 +181,5 @@ def syncGraph(fpath):
 ### Main Execution
 
 if __name__ == '__main__':
-    syncGraph()
+    # @TODO: Grab graph file
+    syncGraph('graph-first-hundred.txt')
