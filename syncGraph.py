@@ -63,8 +63,9 @@ def load_txt(fpath):
     vprint(f'Loading in graph from "{fpath}"')
 
     # Initialize Graph: g is dict of source dicts of target dicts
-    weights = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
-    meta    = defaultdict(lambda: defaultdict(dict))
+    weights    = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    meta       = defaultdict(lambda: defaultdict(dict))
+    centrality = {}
 
     # Open File
     try:
@@ -89,7 +90,18 @@ def load_txt(fpath):
         weight = float(items[4])
         method = items[5]
 
+        # Grab Centrality Scores
+        # @FIXME: Need to split because of how Pam separated by columns. Will be fixed to semi-colons when she fixes.
+        scores = items[9].split(',')
+        source_score = float(scores[0])
+        target_score = float(scores[1])
+
+        # Insert Centrality Scores
+        centrality[source] = source_score
+        centrality[target] = target_score
+
         # Grab Metadata and Insert into Graphs
+        # Use of `eval` is for loading in Python sets
         if method == "related_text":
             data1 = eval(items[7])
             data2 = eval(items[8])
@@ -109,10 +121,10 @@ def load_txt(fpath):
             meta[source][target]["o1"] = data1
             meta[source][target]["o2"] = data2
 
-    print('Finished Loading in Graph')
+    vprint('Finished Loading in Graph')
     f.close()
 
-    return weights, meta
+    return weights, meta, centrality
 
 def insertPostRelatedness(cursor, source, target, rw, rm, sw, sm, ow, om):
     '''
@@ -169,11 +181,48 @@ def insertPostRelatedness(cursor, source, target, rw, rm, sw, sm, ow, om):
     except mysql.connector.Error:
         raise
 
+def insertPostCentrality(cursor, pid, score):
+    '''
+    @desc   Insert information into Post Relatedness
+    --
+    @param  cursor  cursor for mysql.connector
+    @param  pid     post id
+    @param  score   centrality score
+    '''
+
+    # Grab Date
+    evaluated = datetime.now()
+
+    # Query Structure
+    sql = '''
+    INSERT INTO PostCentrality (
+        post_id, score, evaluated
+    )
+    VALUES (
+        %(pid)s, %(score)s, %(evaluated)s
+    )
+    ;
+    '''
+    vprint(f'Inserting Centrality: {pid}; Score: {score}; evaluated: {evaluated}')
+
+    # Query Arguments
+    args = {
+        'pid': pid,
+        'score': score,
+        'evaluated': evaluated
+    }
+
+    # Run Query
+    try:
+        cursor.execute(sql, args)  
+    except mysql.connector.Error:
+        raise
+
 
 def syncGraph(fpath):
 
     # Load in Text File
-    weights, meta = load_txt(fpath)
+    weights, meta, centrality = load_txt(fpath)
     g = weights
 
     # Connect to Mews-App
@@ -211,6 +260,22 @@ def syncGraph(fpath):
             except Exception as ex:
                 print(ex)
                 continue
+
+            appCnx.commit()
+
+    # Insert Post Centrality into DB
+    for post in centrality:
+
+            # Grab Centrality Scores
+            post_score = centrality[post]
+
+            # Insert Source into Post Centrality
+            try:
+                insertPostCentrality(appCursor, post, post_score)
+            except Exception as ex:
+                print(ex)
+                continue
+
             appCnx.commit()
 
     # Disconnect from Mews-App

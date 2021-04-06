@@ -9,3 +9,10 @@ CREATE TABLE `PostRelatedness` (
   `ocr_meta` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`post1_id`,`post2_id`)
 );
+
+CREATE TABLE `PostCentrality` (
+  `post_id` bigint(20) NOT NULL,
+  `score` double NOT NULL,
+  `evaluated` datetime NOT NULL,
+  PRIMARY KEY (`post_id`)
+);
