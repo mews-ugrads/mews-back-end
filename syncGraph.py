@@ -131,8 +131,8 @@ def insertPostRelatedness(cursor, source, target, rw, rm, sw, sm, ow, om):
     @desc   Insert information into Post Relatedness
     --
     @param  cursor  cursor for mysql.connector
-    @param  source  img filename of 1st post (without .jpg)
-    @param  target  img filename of 2nd post (without .jpg)
+    @param  source  scrape_id of post 1
+    @param  target  scrape_id of post 2
     @param  rw      related text weight
     @param  rm      related text metadata
     @param  sw      subimage weight
@@ -144,13 +144,15 @@ def insertPostRelatedness(cursor, source, target, rw, rm, sw, sm, ow, om):
     # Query Structure
     sql = '''
     INSERT INTO PostRelatedness (
-        post1_id, post2_id,
+        post1_id,
+        post2_id,
         rel_txt_wt, rel_txt_meta, 
         sub_img_wt, sub_img_meta, 
         ocr_wt, ocr_meta
     )
     VALUES (
-        %(source)s, %(target)s,
+        (SELECT id FROM Posts WHERE scrape_id = %(source)s),
+        (SELECT id FROM Posts WHERE scrape_id = %(target)s),
         %(rw)s, %(rm)s, 
         %(sw)s, %(sm)s,
         %(ow)s, %(om)s
@@ -183,10 +185,10 @@ def insertPostRelatedness(cursor, source, target, rw, rm, sw, sm, ow, om):
 
 def insertPostCentrality(cursor, pid, score):
     '''
-    @desc   Insert information into Post Relatedness
+    @desc   Insert information into Post Centrality
     --
     @param  cursor  cursor for mysql.connector
-    @param  pid     post id
+    @param  pid     scrape_id
     @param  score   centrality score
     '''
 
@@ -196,10 +198,14 @@ def insertPostCentrality(cursor, pid, score):
     # Query Structure
     sql = '''
     INSERT INTO PostCentrality (
-        post_id, score, evaluated
+        post_id,
+        score,
+        evaluated
     )
     VALUES (
-        %(pid)s, %(score)s, %(evaluated)s
+        (SELECT id FROM Posts WHERE scrape_id = %(pid)s),
+        %(score)s,
+        %(evaluated)s
     )
     ;
     '''
@@ -286,4 +292,4 @@ def syncGraph(fpath):
 
 if __name__ == '__main__':
     # @TODO: Grab graph file
-    syncGraph('./data/first_100_april_2.txt')
+    syncGraph('./data/april_2.txt')
