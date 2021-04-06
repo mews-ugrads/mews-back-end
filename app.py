@@ -7,13 +7,15 @@ from datetime import datetime, timedelta
 import mysql.connector
 import json
 import os
+from flask_cors import CORS, cross_origin
 
 
 ### Globals
 
 app = Flask(__name__)
 os.environ['FLASK_ENV'] = 'development'
-
+cors = CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
 ### Constants
 
 MEWS_CONFIG_FILEPATH = 'config/mews.json'
@@ -62,7 +64,7 @@ def getTrending():
     amount = request.args.get('amount', default=50)
 
     # Define Equation
-    trendingEquation = '(10 * reposts + 10 * replies + likes)'
+    trendingEquation ='(10 * reposts + 10 * replies + likes)'
 
     # Query Mews-App DB
     mewsAppCursor = mewsAppCnx.cursor()
