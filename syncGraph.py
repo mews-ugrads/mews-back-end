@@ -3,29 +3,47 @@
 ### Imports
 
 from datetime import datetime
+from collections import defaultdict
 import mysql.connector
 import json
+import json
+import sys
 import os
+
 
 ### Constants
 
 APP_CONFIG_FILEPATH = 'config/mews-app.json'
 SYNC_GRAPH_CONFIG_FILEPATH = 'config/syncGraph.json'
-
-NUM_METHODS = 4
-FULL_IMG = 0
-REL_TXT  = 1
-SUB_IMG  = 2
-OCR      = 3
+VERBOSE = True
 
 
 ### Functions
 
+def vprint(s):
+    '''
+    @desc   Prints on VERBOSE mode
+    --
+    @param  s  String to print
+    '''
+    global VERBOSE
+    if VERBOSE: print(s)
+
 def loadConfig(filepath):
+    '''
+    @desc   Loads the mysql config json files
+    --
+    @param  filepath  path to config file
+    '''
     with open(filepath) as f:
         return json.load(f)
 
 def connectSQL(config):
+    '''
+    @desc   Connects to mysql
+    --
+    @param  config  mysql.connector config object
+    '''
     try:
         return mysql.connector.connect(**config)
     except mysql.connector.Error:
@@ -37,14 +55,16 @@ def load_txt(fpath):
     '''
     @desc    converts txt file to graph
     --
-    @param   fpath  file path for txt file; path has format "u;v;method;weight;x;x;x;"
-    @return  g      graph in format of {v1: { e1: [w1, w2, w3, w4], e2: [...] }, v2: ...}
+    @param   fpath    file path for txt file; path has format "u;v;method;weight;x;x;x;"
+    @return  weights  graph with weights
+    @return  meta     graph with metadata
     '''
 
-    # Initialize Graph
-    # @TODO: Remove print
-    print('Loading in Graph')
-    g = {}
+    vprint(f'Loading in graph from "{fpath}"')
+
+    # Initialize Graph: g is dict of source dicts of target dicts
+    weights = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    meta    = defaultdict(lambda: defaultdict(dict))
 
     # Open File
     try:
@@ -62,41 +82,45 @@ def load_txt(fpath):
         items = line.rstrip().split(';')
         
         # Grab Attributes
-        # @TODO: Grab metadata and insert into graph
-        source = items[0]
-        target = items[1]
-        method = items[2]
-        weight = float(items[3])
+        source     = items[2]
+        source_img = items[0]
+        target     = items[3]
+        target_img = items[1]
+        weight = float(items[4])
+        method = items[5]
 
-        # Insert Vertices
-        if source not in g: g[source] = {}
-        if target not in g[source]: g[source][target] = NUM_METHODS * [0]
-
-        # Add Weights
-        if method == "full_image_query":
-            g[source][target][FULL_IMG] += weight
+        # Grab Metadata and Insert into Graphs
         if method == "related_text":
-            g[source][target][REL_TXT] += weight
+            data1 = eval(items[7])
+            data2 = eval(items[8])
+            weights[source][target]["r"] += weight
+            meta[source][target]["r1"] = data1
+            meta[source][target]["r2"] = data2
+
         if method == "subimage":
-            g[source][target][SUB_IMG] += weight
+            data = items[6]
+            weights[source][target]["s"] += weight
+            meta[source][target]["s"] = data
+
         if method == "ocr":
-            g[source][target][OCR] += weight
+            data1 = eval(items[7])
+            data2 = eval(items[8])
+            weights[source][target]["o"] += weight
+            meta[source][target]["o1"] = data1
+            meta[source][target]["o2"] = data2
 
-    # @TODO: Remove print
     print('Finished Loading in Graph')
-
     f.close()
-    return g
 
-def insertPostRelatedness(cursor, source, target, fw, fm, rw, rm, sw, sm, ow, om):
+    return weights, meta
+
+def insertPostRelatedness(cursor, source, target, rw, rm, sw, sm, ow, om):
     '''
     @desc   Insert information into Post Relatedness
     --
     @param  cursor  cursor for mysql.connector
     @param  source  img filename of 1st post (without .jpg)
     @param  target  img filename of 2nd post (without .jpg)
-    @param  fw      full image query weight
-    @param  fm      full image query metadata
     @param  rw      related text weight
     @param  rm      related text metadata
     @param  sw      subimage weight
@@ -107,25 +131,30 @@ def insertPostRelatedness(cursor, source, target, fw, fm, rw, rm, sw, sm, ow, om
 
     # Query Structure
     sql = '''
-    INSERT INTO PostRelatedness
-        (post1_id, post2_id, full_img_wt, full_img_meta, rel_txt_wt, 
-        rel_txt_meta, sub_img_wt, sub_img_meta, ocr_wt, ocr_meta)
-    SELECT post1_id, post2_id, %(fw)s as full_img_wt, '%(fm)s' as full_img_meta,
-    %(rw)s as rel_txt_wt, '%(rm)s' as rel_txt_meta, %(sw)s as sub_img_wt, '%(sm)s' as sub_img_meta,
-    %(ow)s as ocr_wt, '%(om)s' as ocr_meta 
-        FROM (SELECT id as post1_id FROM Posts WHERE image_filename = %(s)s LIMIT 1) as id1 
-        JOIN (SELECT id as post2_id FROM Posts WHERE image_filename = %(t)s LIMIT 1) as id2
+    INSERT INTO PostRelatedness (
+        post1_id, post2_id,
+        rel_txt_wt, rel_txt_meta, 
+        sub_img_wt, sub_img_meta, 
+        ocr_wt, ocr_meta
+    )
+    VALUES (
+        %(source)s, %(target)s,
+        %(rw)s, %(rm)s, 
+        %(sw)s, %(sm)s,
+        %(ow)s, %(om)s
+    )
     ;
     '''
-    # @TODO: Remove print
-    print(f'Inserting {source}-{target}: {fw}-{rw}-{sw}-{ow}')
+
+    vprint(f'Inserting Source: {source}; Target: {target}; Weights (r-s-o): {rw}-{sw}-{ow}')
+    vprint(f'  R Meta: {rm}')
+    vprint(f'  S Meta: {sm}')
+    vprint(f'  O Meta: {om}')
 
     # Query Arguments
     args = {
-        's': source + '.jpg',
-        't': target + '.jpg',
-        'fw': fw,
-        'fm': fm,
+        'source': source,
+        'target': target,
         'rw': rw,
         'rm': rm,
         'sw': sw,
@@ -135,7 +164,6 @@ def insertPostRelatedness(cursor, source, target, fw, fm, rw, rm, sw, sm, ow, om
     }
 
     # Run Query
-
     try:
         cursor.execute(sql, args)  
     except mysql.connector.Error:
@@ -145,7 +173,8 @@ def insertPostRelatedness(cursor, source, target, fw, fm, rw, rm, sw, sm, ow, om
 def syncGraph(fpath):
 
     # Load in Text File
-    g = load_txt(fpath)
+    weights, meta = load_txt(fpath)
+    g = weights
 
     # Connect to Mews-App
     appConfig = loadConfig(APP_CONFIG_FILEPATH)
@@ -157,18 +186,28 @@ def syncGraph(fpath):
         for target in g[source]:
 
             # Grab Weights and Metadata
-            fw = g[source][target][FULL_IMG]
-            fm = ''
-            rw = g[source][target][REL_TXT]
-            rm = ''
-            sw = g[source][target][SUB_IMG]
-            sm = ''
-            ow = g[source][target][OCR]
-            om = ''
+            rw = weights[source][target]['r']
+            sw = weights[source][target]['s']
+            ow = weights[source][target]['o']
+
+            # Grab Metadata Sets, Perform Intersection to find Common, then Join by ';' to minimize length
+            rm = None
+            if rw:
+                rm = meta[source][target]['r1'].intersection(meta[source][target]['r2'])
+                rm = ';'.join(rm)
+            om = None
+            if ow:
+                om = meta[source][target]['o1'].intersection(meta[source][target]['o2'])
+                om = ';'.join(om)
+
+            # Grab Metadata List as String
+            sm = None
+            if sw:
+                sm = meta[source][target]['s']
 
             # Insert into Post Relatedness
             try:
-                insertPostRelatedness(appCursor, source, target, fw, fm, rw, rm, sw, sm, ow, om)
+                insertPostRelatedness(appCursor, source, target, rw, rm, sw, sm, ow, om)
             except Exception as ex:
                 print(ex)
                 continue
@@ -182,4 +221,4 @@ def syncGraph(fpath):
 
 if __name__ == '__main__':
     # @TODO: Grab graph file
-    syncGraph('graph-first-hundred.txt')
+    syncGraph('./data/first_100_april_2.txt')
