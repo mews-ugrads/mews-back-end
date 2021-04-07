@@ -6,7 +6,6 @@ from datetime import datetime
 from collections import defaultdict
 import mysql.connector
 import json
-import json
 import sys
 import os
 
@@ -67,13 +66,16 @@ def load_txt(fpath):
     meta       = defaultdict(lambda: defaultdict(dict))
     centrality = {}
 
-    # Open File
-    try:
-        f = open(fpath, 'r')
-    except:
-        print(f'Cannot open "{fpath}"')
-        sys.exit(1)
+    # Grab JSON
+    with open(fpath) as f:
+        data = json.load(f)
 
+    for key in data['posts']:
+        print(key)
+
+    sys.exit(0)
+
+    '''
     # Ignore First Line
     next(f)
 
@@ -123,6 +125,7 @@ def load_txt(fpath):
 
     vprint('Finished Loading in Graph')
     f.close()
+    '''
 
     return weights, meta, centrality
 
@@ -292,4 +295,4 @@ def syncGraph(fpath):
 
 if __name__ == '__main__':
     # @TODO: Grab graph file
-    syncGraph('./data/april_2.txt')
+    syncGraph('./data/april_2.json')
