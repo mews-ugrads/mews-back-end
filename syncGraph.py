@@ -224,7 +224,6 @@ def syncGraph(fpath):
                 print(f'  R Meta: {rm}')
                 print(f'  S Meta: {sm}')
                 print(f'  O Meta: {om}')
-
             continue
 
             # Insert into Post Relatedness
