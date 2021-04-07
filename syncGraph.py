@@ -195,12 +195,17 @@ def syncGraph(fpath):
         for target in edges[source]:
 
             # Grab Weights
-            rw = edges[source][target].get('rw')
-            ow = edges[source][target].get('ow')
+            rw = edges[source][target].get('rel_text')
+            ow = edges[source][target].get('ocr')
 
-            # Accumulate Subimage Weights
-            sub_edges = edges[source][target].get('sw', [])
-            sw = reduce(lambda a, b : a[0] + b[0], sub_edges, None)
+            # Accumulate Subimage Weights and Meta Labels
+            sub_edges = edges[source][target].get('subimage', [])
+            labels = []
+            sw = 0 if len(sub_edges) > 0 else None
+            for tup in sub_edges:
+                sw += tup[0]
+                labels.append(tup[1])
+            sm = '|'.join(labels)
 
             # Grab Metadata Sets, Perform Intersection to find Common, then Join by '|' to minimize length
             rm = None
@@ -212,10 +217,15 @@ def syncGraph(fpath):
                 om = eval(posts[source].get('ocr', 'set()')).intersection(eval(posts[target].get('ocr', 'set()')))
                 om = '|'.join(om)
 
-            # Grab Metadata Labels and Append with '|' separator
-            sm = None
-            if sw:
-                sm = reduce(lambda a, b : a[1] + '|' + b[1], sub_edges, None)
+            # @TODO: Remove
+            if sw and rw or sw and ow or rw and ow:
+                print('FOUND SOMETHING WITH MULTI EDGES')
+                print(f'Inserting Source: {source}; Target: {target}; Weights (r-s-o): {rw}-{sw}-{ow}')
+                print(f'  R Meta: {rm}')
+                print(f'  S Meta: {sm}')
+                print(f'  O Meta: {om}')
+
+            continue
 
             # Insert into Post Relatedness
             try:
@@ -225,6 +235,9 @@ def syncGraph(fpath):
                 continue
 
             appCnx.commit()
+
+    # @TODO: Remove
+    sys.exit(0)
 
     # Insert Post Centrality into DB
     for post in posts:
