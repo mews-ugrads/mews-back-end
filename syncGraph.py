@@ -183,7 +183,7 @@ def insertPostCentrality(cursor, pid, score):
 def syncGraph(fpath):
 
     # Load in Text File
-    posts, edges = load_txt(fpath)
+    posts, edges = load_json(fpath)
 
     # Connect to Mews-App
     appConfig = loadConfig(APP_CONFIG_FILEPATH)
@@ -196,14 +196,17 @@ def syncGraph(fpath):
 
             # Grab Weights
             rw = edges[source][target].get('rw')
-            sw = edges[source][target].get('sw')
             ow = edges[source][target].get('ow')
+
+            # Accumulate Subimage Weights
+            sub_edges = edges[source][target].get('sw', [])
+            sw = reduce(lambda a, b : a[0] + b[0], sub_edges, None)
 
             # Grab Metadata Sets, Perform Intersection to find Common, then Join by ';' to minimize length
             rm = None
             om = None
             if rw:
-                rm = eval(posts[source].get('related_text', '{}')).intersection(eval(posts[target].get('related_text', '{}')))
+                rm = eval(posts[source].get('related_text', 'set()')).intersection(eval(posts[target].get('related_text', 'set()')))
                 rm = '|'.join(rm)
             if ow:
                 om = eval(posts[source].get('ocr', 'set()')).intersection(eval(posts[target].get('ocr', 'set()')))
@@ -212,8 +215,7 @@ def syncGraph(fpath):
             # Grab Metadata List as String
             sm = None
             if sw:
-                sm = edges[source][target].get('label')
-            
+                sm = reduce(lambda a, b : a[1] + '|' + b[1], sub_edges, None)
 
             # Insert into Post Relatedness
             try:
