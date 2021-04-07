@@ -5,94 +5,96 @@
 from datetime import datetime
 import mysql.connector
 import json
+import sys
 import os
 
 ### Constants
 
-MEWS_CONFIG_FILEPATH = 'config/mews.json'
-MEWSAPP_CONFIG_FILEPATH = 'config/mews-app.json'
-SYNC_CONFIG_FILEPATH = 'config/sync.json'
-UPDATE_CONFIG_FILEPATH = 'config/updatePosts.json'
+MEWS_CONFIG_FILEPATH = 'config/inter-mews.json'
 
 ### Functions
 
 def loadConfig(filepath):
+    '''
+    @desc   Loads the mysql config json files
+    --
+    @param  filepath  path to config file
+    '''
     with open(filepath) as f:
         return json.load(f)
 
+
+def connectSQL(config):
+    '''
+    @desc   Connects to mysql
+    --
+    @param  config  mysql.connector config object
+    '''
+    try:
+        return mysql.connector.connect(**config)
+    except mysql.connector.Error:
+        raise
+        return None
+
+
 def updatePosts():
+    '''
+    @desc  updates Posts in mews_app if the when_scraped2 value in ...
+           ... mews.scraped_images is greater than mews.when_updated
+    '''
+
     # Grab Mews Config
     mewsConfig = loadConfig(MEWS_CONFIG_FILEPATH)
-
-    # Connect to Mews DB
-    try:
-        mewsCnx = mysql.connector.connect(**mewsConfig)
-    except mysql.connector.Error as err:
-        print(err)
-        return 1
-
-    # Grab Last Sync and Format
-    state = loadConfig(UPDATE_CONFIG_FILEPATH)
-    lastUpdate = state['lastUpdate']
-    thisUpdateDatetime = str(datetime.now())
-    print(f'Last Update Datetime: {lastUpdate}')
-    print(f'This Update DateTime: {thisUpdateDatetime}')
-
-    # Query Mews DB
+    mewsCnx = connectSQL(mewsConfig)
     mewsCursor = mewsCnx.cursor()
-    query = ("SELECT pic_id, reposts, replies, likes, when_scraped2 FROM scraped_images WHERE when_scraped2 > %s")
-    mewsCursor.execute(query, (lastUpdate,))
 
-    # Grab Mews-App Config
-    mewsAppConfig = loadConfig(MEWSAPP_CONFIG_FILEPATH)
+    # Query Mews DB For Updated Posts
+    # Note: order needs to be same for Insert
+    sql = '''
+    SELECT
+        reposts,
+        replies,
+        likes,
+        when_scraped2,
+        pic_id
+    FROM
+        mews.scraped_images AS src_post
+    WHERE
+        src_post.when_scraped2 > (SELECT when_updated FROM mews_app.Posts WHERE src_post.pic_id = scrape_id)
+    ;
+    '''
+    mewsCursor.execute(sql)
 
-    # Connect to Mews-App DB
+
+    # Print and Exit if Needed
+    updatedInfo = mewsCursor.fetchall()
+    print(f'Selected {len(updatedInfo)} rows in mews:scraped_images')
+    if len(updatedInfo) == 0:
+        print('No rows need updating')
+        sys.exit(0)
+
+    # Insert into Mews-App
+    sql = '''
+    UPDATE mews_app.Posts
+    SET
+        reposts = %s,
+        replies = %s,
+        likes = %s,
+        when_updated = %s
+    WHERE scrape_id = %s
+    ;
+    '''
+
     try:
-        mewsAppCnx = mysql.connector.connect(**mewsAppConfig)
+        mewsCursor.executemany(sql, updatedInfo)
     except mysql.connector.Error as err:
         print(err)
-        return 1
 
-    # Print
-    execution = mewsCursor.fetchall()
-    print(f'Selected {len(execution)} rows in mews:scraped_images')
-
-    # Extract Variables
-    for result in execution:
-
-        (scrape_id, reposts, replies, likes, when_updated) = result
-
-        # Insert into Mews-App
-        data = {
-                'reposts': reposts,
-                'replies': replies,
-                'likes': likes,
-                'when_updated': when_updated,
-                'scrape_id': scrape_id,
-                }
-        mewsAppCursor = mewsAppCnx.cursor()
-        query = ("UPDATE Posts "
-        "SET reposts = %(reposts)s, replies = %(replies)s, likes = %(replies)s, when_updated = %(when_updated)s "
-        "WHERE scrape_id = %(scrape_id)s;")
-
-        try:
-            mewsAppCursor.execute(query, data)
-            mewsAppCnx.commit()
-        except mysql.connector.Error as err:
-            print(err)
-            return 1
+    mewsCnx.commit()
 
     # Disconnect from Mews and Mews-App
     print('Finished Updating')
     mewsCnx.close()
-    mewsAppCnx.close()
-
-    # Update config file
-    print(f'Writing This Update DateTime: {thisUpdateDatetime}')
-    state['lastUpdate'] = thisUpdateDatetime
-    with open(UPDATE_CONFIG_FILEPATH, 'w') as f:
-        json.dump(state, f)
-
 
 
 ### Main Execution
