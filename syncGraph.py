@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 
+'''
+' @file   syncGraph.py
+' @desc   Grabs input JSON file of posts and edges, inserts into PostRelatedness ...
+'         ... the edges and inserts into PostCentrality the scores from posts.
+' @notes  The file has scrape_id's. For inserting into our DB, we need to search for our id's (seen below in queries).
+'''
+
 ### Imports
 
 from datetime import datetime
@@ -28,6 +35,7 @@ def vprint(s):
     global VERBOSE
     if VERBOSE: print(s)
 
+
 def loadConfig(filepath):
     '''
     @desc   Loads the mysql config json files
@@ -36,6 +44,7 @@ def loadConfig(filepath):
     '''
     with open(filepath) as f:
         return json.load(f)
+
 
 def connectSQL(config):
     '''
@@ -50,84 +59,26 @@ def connectSQL(config):
         return None
 
 
-def load_txt(fpath):
+def load_json(fpath):
     '''
-    @desc    converts txt file to graph
+    @desc    parses JSON graph file
     --
-    @param   fpath    file path for txt file; path has format "u;v;method;weight;x;x;x;"
-    @return  weights  graph with weights
-    @return  meta     graph with metadata
+    @param   fpath    file path for json file
+    @return  posts    dict with post data (centrality, ocr, rel_txt)
+    @return  edges    dict with edge data
     '''
 
     vprint(f'Loading in graph from "{fpath}"')
-
-    # Initialize Graph: g is dict of source dicts of target dicts
-    weights    = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
-    meta       = defaultdict(lambda: defaultdict(dict))
-    centrality = {}
 
     # Grab JSON
     with open(fpath) as f:
         data = json.load(f)
 
-    for key in data['posts']:
-        print(key)
+    posts = data['posts']
+    edges = data['edges']
 
-    sys.exit(0)
+    return posts, edges
 
-    '''
-    # Ignore First Line
-    next(f)
-
-    # Loop Through Lines
-    for line in f:
-        # Grab Items
-        items = line.rstrip().split(';')
-        
-        # Grab Attributes
-        source     = items[2]
-        source_img = items[0]
-        target     = items[3]
-        target_img = items[1]
-        weight = float(items[4])
-        method = items[5]
-
-        # Grab Centrality Scores
-        # @FIXME: Need to split because of how Pam separated by columns. Will be fixed to semi-colons when she fixes.
-        scores = items[9].split(',')
-        source_score = float(scores[0])
-        target_score = float(scores[1])
-
-        # Insert Centrality Scores
-        centrality[source] = source_score
-        centrality[target] = target_score
-
-        # Grab Metadata and Insert into Graphs
-        # Use of `eval` is for loading in Python sets
-        if method == "related_text":
-            data1 = eval(items[7])
-            data2 = eval(items[8])
-            weights[source][target]["r"] += weight
-            meta[source][target]["r1"] = data1
-            meta[source][target]["r2"] = data2
-
-        if method == "subimage":
-            data = items[6]
-            weights[source][target]["s"] += weight
-            meta[source][target]["s"] = data
-
-        if method == "ocr":
-            data1 = eval(items[7])
-            data2 = eval(items[8])
-            weights[source][target]["o"] += weight
-            meta[source][target]["o1"] = data1
-            meta[source][target]["o2"] = data2
-
-    vprint('Finished Loading in Graph')
-    f.close()
-    '''
-
-    return weights, meta, centrality
 
 def insertPostRelatedness(cursor, source, target, rw, rm, sw, sm, ow, om):
     '''
@@ -186,6 +137,7 @@ def insertPostRelatedness(cursor, source, target, rw, rm, sw, sm, ow, om):
     except mysql.connector.Error:
         raise
 
+
 def insertPostCentrality(cursor, pid, score):
     '''
     @desc   Insert information into Post Centrality
@@ -231,8 +183,7 @@ def insertPostCentrality(cursor, pid, score):
 def syncGraph(fpath):
 
     # Load in Text File
-    weights, meta, centrality = load_txt(fpath)
-    g = weights
+    posts, edges = load_txt(fpath)
 
     # Connect to Mews-App
     appConfig = loadConfig(APP_CONFIG_FILEPATH)
@@ -240,28 +191,29 @@ def syncGraph(fpath):
     appCursor = appCnx.cursor(dictionary=True)
 
     # Insert Edges into DB
-    for source in g:
-        for target in g[source]:
+    for source in edges:
+        for target in edges[source]:
 
-            # Grab Weights and Metadata
-            rw = weights[source][target]['r']
-            sw = weights[source][target]['s']
-            ow = weights[source][target]['o']
+            # Grab Weights
+            rw = edges[source][target].get('rw')
+            sw = edges[source][target].get('sw')
+            ow = edges[source][target].get('ow')
 
             # Grab Metadata Sets, Perform Intersection to find Common, then Join by ';' to minimize length
             rm = None
-            if rw:
-                rm = meta[source][target]['r1'].intersection(meta[source][target]['r2'])
-                rm = ';'.join(rm)
             om = None
+            if rw:
+                rm = eval(posts[source].get('related_text', '{}')).intersection(eval(posts[target].get('related_text', '{}')))
+                rm = '|'.join(rm)
             if ow:
-                om = meta[source][target]['o1'].intersection(meta[source][target]['o2'])
-                om = ';'.join(om)
+                om = eval(posts[source].get('ocr', 'set()')).intersection(eval(posts[target].get('ocr', 'set()')))
+                om = '|'.join(om)
 
             # Grab Metadata List as String
             sm = None
             if sw:
-                sm = meta[source][target]['s']
+                sm = edges[source][target].get('label')
+            
 
             # Insert into Post Relatedness
             try:
@@ -273,10 +225,10 @@ def syncGraph(fpath):
             appCnx.commit()
 
     # Insert Post Centrality into DB
-    for post in centrality:
+    for post in posts:
 
             # Grab Centrality Scores
-            post_score = centrality[post]
+            post_score = posts[post]['score']
 
             # Insert Source into Post Centrality
             try:
