@@ -137,6 +137,85 @@ def getPost(pid):
 
     return jsonify(post)
 
+@app.route('/related/<pid>', methods=['GET'])
+def getRelatedPosts(pid):
+    """
+    @route   GET /related/<pid>
+    @desc    Returns the specified post
+    --
+    @param   skip   - number of posts to skip (int)
+    @param   amount - number of posts to return (int)
+    --
+    @return  list of related posts
+    """
+
+    # Grab Mews-App Config
+    config = loadConfig(MEWSAPP_CONFIG_FILEPATH)
+
+    # Connect to Mews-App DB
+    try:
+        cnx = mysql.connector.connect(**config)
+    except mysql.connector.Error as err:
+        return jsonify({'error': 'Could not connect to Mews-App DB'}), 400
+
+    # Constants to be Tuned
+    REL_TXT_WEIGHT = 1
+    SUB_IMG_WEIGHT = 1
+    OCR_WEIGHT = 1
+
+    # Query Mews-App DB
+    cursor = cnx.cursor(dictionary=True)
+    query = '''
+        SELECT 
+            post1_id,
+            post2_id,
+            rel_txt_wt,
+            rel_txt_meta,
+            sub_img_wt,
+            ocr_wt,
+            rel_txt_wt * %(rel_txt_wt)s + 
+            sub_img_wt * %(sub_img_wt)s + 
+            ocr_wt * %(ocr_wt)s 
+            as total_wt
+        FROM 
+            PostRelatedness
+        WHERE
+            post1_id = %(post_id)s
+            OR
+            post2_id = %(post_id)s
+        ORDER BY
+            total_wt DESC
+        LIMIT
+            %(skip)s, %(amount)s 
+        ;
+    '''
+
+    args = {
+        'rel_txt_wt': REL_TXT_WEIGHT,
+        'sub_img_wt': SUB_IMG_WEIGHT,
+        'ocr_wt': OCR_WEIGHT,
+        'post_id': pid,
+        'skip': request.args.get('skip', 0),
+        'amount': request.args.get('amount', 5)
+    }
+
+    cursor.execute(query, args)
+
+    results = []
+    for result in cursor.fetchall():
+        pids = set([result['post1_id'], result['post2_id']])
+        if (len(pids) == 1): continue
+        pids -= set([pid])
+        assert(len(pids) == 1)
+        del result['post1_id']
+        del result['post2_id']
+        result['id'] = list(pids)[0] 
+        results.append(result)
+
+    cursor.close()
+    cnx.close()
+
+    return jsonify(results)
 
 ### Main Execution
 
