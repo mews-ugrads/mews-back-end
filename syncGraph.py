@@ -202,7 +202,7 @@ def syncGraph(fpath):
             sub_edges = edges[source][target].get('sw', [])
             sw = reduce(lambda a, b : a[0] + b[0], sub_edges, None)
 
-            # Grab Metadata Sets, Perform Intersection to find Common, then Join by ';' to minimize length
+            # Grab Metadata Sets, Perform Intersection to find Common, then Join by '|' to minimize length
             rm = None
             om = None
             if rw:
@@ -212,7 +212,7 @@ def syncGraph(fpath):
                 om = eval(posts[source].get('ocr', 'set()')).intersection(eval(posts[target].get('ocr', 'set()')))
                 om = '|'.join(om)
 
-            # Grab Metadata List as String
+            # Grab Metadata Labels and Append with '|' separator
             sm = None
             if sw:
                 sm = reduce(lambda a, b : a[1] + '|' + b[1], sub_edges, None)
