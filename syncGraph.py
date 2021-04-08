@@ -80,6 +80,33 @@ def load_json(fpath):
     return posts, edges
 
 
+def getSubimageWeightsMeta(edges):
+    sub_edges = edges[source][target].get('subimage', [])
+    labels = []
+    sw = 0 if len(sub_edges) > 0 else None
+    for tup in sub_edges:
+        sw += tup[0]
+        labels.append(tup[1])
+    sm = '|'.join(labels)
+    return sw, sm
+
+
+def getRelTxtWeightsMeta(posts, rw):
+    rw = edges[source][target].get('rel_text')
+    if rw:
+        rm = eval(posts[source].get('related_text', 'set()')).intersection(eval(posts[target].get('related_text', 'set()')))
+        rm = '|'.join(rm)
+    return rw, rm
+
+
+def getOcrWeightsMeta(posts, ow):
+    ow = edges[source][target].get('ocr')
+    if ow:
+        om = eval(posts[source].get('ocr', 'set()')).intersection(eval(posts[target].get('ocr', 'set()')))
+        om = '|'.join(om)
+    return ow, om
+
+
 def insertPostRelatedness(cursor, source, target, rw, rm, sw, sm, ow, om):
     '''
     @desc   Insert information into Post Relatedness
@@ -181,6 +208,9 @@ def insertPostCentrality(cursor, pid, score):
 
 
 def syncGraph(fpath):
+    '''
+    @desc  grabs JSON, inserts into PostRelatedness and PostCentrality
+    '''
 
     # Load in Text File
     posts, edges = load_json(fpath)
@@ -194,28 +224,10 @@ def syncGraph(fpath):
     for source in edges:
         for target in edges[source]:
 
-            # Grab Weights
-            rw = edges[source][target].get('rel_text')
-            ow = edges[source][target].get('ocr')
-
-            # Accumulate Subimage Weights and Meta Labels
-            sub_edges = edges[source][target].get('subimage', [])
-            labels = []
-            sw = 0 if len(sub_edges) > 0 else None
-            for tup in sub_edges:
-                sw += tup[0]
-                labels.append(tup[1])
-            sm = '|'.join(labels)
-
-            # Grab Metadata Sets, Perform Intersection to find Common, then Join by '|' to minimize length
-            rm = None
-            om = None
-            if rw:
-                rm = eval(posts[source].get('related_text', 'set()')).intersection(eval(posts[target].get('related_text', 'set()')))
-                rm = '|'.join(rm)
-            if ow:
-                om = eval(posts[source].get('ocr', 'set()')).intersection(eval(posts[target].get('ocr', 'set()')))
-                om = '|'.join(om)
+            # Grab Weights and Metadata
+            rw, rm = getRelTxtWeightsMeta(posts, rw)
+            ow, om = getOcrWeightsMeta(posts, ow)
+            sw, sm = getSubimageWeightsMeta(edges)
 
             # Insert into Post Relatedness
             try:
