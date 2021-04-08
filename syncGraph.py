@@ -217,17 +217,6 @@ def syncGraph(fpath):
                 om = eval(posts[source].get('ocr', 'set()')).intersection(eval(posts[target].get('ocr', 'set()')))
                 om = '|'.join(om)
 
-            # @TODO: Remove
-            '''
-            if sw and rw or sw and ow or rw and ow:
-                print('FOUND SOMETHING WITH MULTI EDGES')
-                print(f'Inserting Source: {source}; Target: {target}; Weights (r-s-o): {rw}-{sw}-{ow}')
-                print(f'  R Meta: {rm}')
-                print(f'  S Meta: {sm}')
-                print(f'  O Meta: {om}')
-            continue
-            '''
-
             # Insert into Post Relatedness
             try:
                 insertPostRelatedness(appCursor, source, target, rw, rm, sw, sm, ow, om)
@@ -236,11 +225,6 @@ def syncGraph(fpath):
                 continue
 
             appCnx.commit()
-
-    # @TODO: Remove
-    '''
-    sys.exit(0)
-    '''
 
     # Insert Post Centrality into DB
     for post in posts:
