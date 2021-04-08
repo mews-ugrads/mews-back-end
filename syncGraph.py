@@ -79,36 +79,40 @@ def load_json(fpath):
     return posts, edges
 
 
-def getSubimageWeightsMeta(edges):
+def getSubimageWeightsMeta(edges, source, target):
     '''
     @desc  Returns subimage weight (float, else None) and metadata (string, else None)
     '''
     sub_edges = edges[source][target].get('subimage', [])
     labels = []
     sw = 0 if len(sub_edges) > 0 else None
-    for tup in sub_edges:
-        sw += tup[0]
-        labels.append(tup[1])
-    sm = '|'.join(labels)
+    sm = None
+    if len(sub_edges) > 0:
+        for tup in sub_edges:
+            sw += tup[0]
+            labels.append(tup[1])
+        sm = '|'.join(labels)
     return sw, sm
 
 
-def getRelTxtWeightsMeta(posts, edges):
+def getRelTxtWeightsMeta(posts, edges, source, target):
     '''
     @desc  Returns rel-text weight (float, else None) and metadata (string, else None)
     '''
     rw = edges[source][target].get('rel_text')
+    rm = None
     if rw:
         rm = eval(posts[source].get('related_text', 'set()')).intersection(eval(posts[target].get('related_text', 'set()')))
         rm = '|'.join(rm)
     return rw, rm
 
 
-def getOcrWeightsMeta(posts, edges):
+def getOcrWeightsMeta(posts, edges, source, target):
     '''
     @desc  Returns ocr weight (float, else None) and metadata (string, else None)
     '''
     ow = edges[source][target].get('ocr')
+    om = None
     if ow:
         om = eval(posts[source].get('ocr', 'set()')).intersection(eval(posts[target].get('ocr', 'set()')))
         om = '|'.join(om)
@@ -233,9 +237,9 @@ def syncGraph(fpath):
         for target in edges[source]:
 
             # Grab Weights and Metadata
-            rw, rm = getRelTxtWeightsMeta(posts, edges)
-            ow, om = getOcrWeightsMeta(posts, edges)
-            sw, sm = getSubimageWeightsMeta(edges)
+            rw, rm = getRelTxtWeightsMeta(posts, edges, source, target)
+            ow, om = getOcrWeightsMeta(posts, edges, source, target)
+            sw, sm = getSubimageWeightsMeta(edges, source, target)
 
             # Insert into Post Relatedness
             try:
