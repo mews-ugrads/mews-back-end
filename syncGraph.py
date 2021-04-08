@@ -234,8 +234,8 @@ def syncGraph(fpath):
         for target in edges[source]:
 
             # Grab Weights and Metadata
-            rw, rm = getRelTxtWeightsMeta(posts, rw)
-            ow, om = getOcrWeightsMeta(posts, ow)
+            rw, rm = getRelTxtWeightsMeta(posts, edges)
+            ow, om = getOcrWeightsMeta(posts, edges)
             sw, sm = getSubimageWeightsMeta(edges)
 
             # Insert into Post Relatedness
