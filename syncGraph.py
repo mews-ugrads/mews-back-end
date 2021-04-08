@@ -218,6 +218,7 @@ def syncGraph(fpath):
                 om = '|'.join(om)
 
             # @TODO: Remove
+            '''
             if sw and rw or sw and ow or rw and ow:
                 print('FOUND SOMETHING WITH MULTI EDGES')
                 print(f'Inserting Source: {source}; Target: {target}; Weights (r-s-o): {rw}-{sw}-{ow}')
@@ -225,6 +226,7 @@ def syncGraph(fpath):
                 print(f'  S Meta: {sm}')
                 print(f'  O Meta: {om}')
             continue
+            '''
 
             # Insert into Post Relatedness
             try:
@@ -236,7 +238,9 @@ def syncGraph(fpath):
             appCnx.commit()
 
     # @TODO: Remove
+    '''
     sys.exit(0)
+    '''
 
     # Insert Post Centrality into DB
     for post in posts:
