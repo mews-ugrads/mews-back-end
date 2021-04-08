@@ -81,6 +81,9 @@ def load_json(fpath):
 
 
 def getSubimageWeightsMeta(edges):
+    '''
+    @desc  Returns subimage weight (float, else None) and metadata (string, else None)
+    '''
     sub_edges = edges[source][target].get('subimage', [])
     labels = []
     sw = 0 if len(sub_edges) > 0 else None
@@ -91,7 +94,10 @@ def getSubimageWeightsMeta(edges):
     return sw, sm
 
 
-def getRelTxtWeightsMeta(posts, rw):
+def getRelTxtWeightsMeta(posts, edges):
+    '''
+    @desc  Returns rel-text weight (float, else None) and metadata (string, else None)
+    '''
     rw = edges[source][target].get('rel_text')
     if rw:
         rm = eval(posts[source].get('related_text', 'set()')).intersection(eval(posts[target].get('related_text', 'set()')))
@@ -99,7 +105,10 @@ def getRelTxtWeightsMeta(posts, rw):
     return rw, rm
 
 
-def getOcrWeightsMeta(posts, ow):
+def getOcrWeightsMeta(posts, edges):
+    '''
+    @desc  Returns ocr weight (float, else None) and metadata (string, else None)
+    '''
     ow = edges[source][target].get('ocr')
     if ow:
         om = eval(posts[source].get('ocr', 'set()')).intersection(eval(posts[target].get('ocr', 'set()')))
