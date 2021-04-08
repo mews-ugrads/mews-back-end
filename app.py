@@ -137,6 +137,115 @@ def getPost(pid):
 
     return jsonify(post)
 
+@app.route('/related/<pid>', methods=['GET'])
+def getRelatedPosts(pid):
+    """
+    @route   GET /related/<pid>
+    @desc    Returns the specified post
+    --
+    @param   skip   - number of posts to skip (int)
+    @param   amount - number of posts to return (int)
+    --
+    @return  list of related posts
+    """
+
+    # Grab Mews-App Config
+    config = loadConfig(MEWSAPP_CONFIG_FILEPATH)
+
+    # Connect to Mews-App DB
+    try:
+        cnx = mysql.connector.connect(**config)
+    except mysql.connector.Error as err:
+        return jsonify({'error': 'Could not connect to Mews-App DB'}), 400
+
+    # Constants to be Tuned
+    REL_TXT_WEIGHT = 1
+    SUB_IMG_WEIGHT = 1
+    OCR_WEIGHT = 1
+
+    # parse args
+    try:
+        pid = int(pid)
+        assert(pid >= 0)
+    except:
+        return jsonify({'error': 'Invalid post id'}), 400
+
+    try:
+        skip = int(request.args.get('skip', 0))
+        assert(skip >= 0)
+    except:
+        return jsonify({'error': 'Invalid parameter `skip`'}), 400
+
+    try:
+        amount = int(request.args.get('amount', 1))
+        assert(amount >= 0)
+    except:
+        return jsonify({'error': 'Invalid parameter `amount`'}), 400
+
+    # Query Mews-App DB
+    cursor = cnx.cursor(dictionary=True)
+    query = '''
+        SELECT 
+            post1_id,
+            post2_id,
+            rel_txt_wt,
+            rel_txt_meta,
+            ocr_meta,
+            sub_img_wt,
+            ocr_wt,
+            ifnull(rel_txt_wt, 0) * %(rel_txt_wt)s + 
+            ifnull(sub_img_wt, 0) * %(sub_img_wt)s + 
+            ifnull(ocr_wt, 0) * %(ocr_wt)s 
+            as total_wt
+        FROM 
+            PostRelatedness
+        WHERE
+            post1_id = %(post_id)s
+            OR
+            post2_id = %(post_id)s
+        ORDER BY
+            total_wt DESC
+        LIMIT
+            %(skip)s, %(amount)s 
+        ;
+    '''
+
+    # Arguments for Query
+    args = {
+        'rel_txt_wt': REL_TXT_WEIGHT,
+        'sub_img_wt': SUB_IMG_WEIGHT,
+        'ocr_wt': OCR_WEIGHT,
+        'post_id': pid,
+        'skip': skip,
+        'amount': amount
+    }
+
+    # Execute Query
+    cursor.execute(query, args)
+
+    # Process Results
+    results = []
+    for result in cursor.fetchall():
+        try:
+            # Find Non-Queried ID
+            pids = set([int(result['post1_id']), int(result['post2_id'])])
+            if (len(pids) == 1): continue
+            pids -= set([pid])
+            assert(len(pids) == 1)
+            del result['post1_id']
+            del result['post2_id']
+            result['id'] = list(pids)[0] 
+
+            results.append(result)
+        except:
+            pass
+
+    # Clean Up
+    cursor.close()
+    cnx.close()
+
+    # Return Results
+    return jsonify(results)
 
 ### Main Execution
 
