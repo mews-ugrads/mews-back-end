@@ -19,8 +19,7 @@ import os
 
 ### Constants
 
-APP_CONFIG_FILEPATH = 'config/mews-app.json'
-SYNC_GRAPH_CONFIG_FILEPATH = 'config/syncGraph.json'
+MEWS_CONFIG_FILEPATH = 'config/inter-mews.json'
 VERBOSE = True
 
 
@@ -133,7 +132,7 @@ def insertPostRelatedness(cursor, source, target, rw, rm, sw, sm, ow, om):
 
     # Query Structure
     sql = '''
-    INSERT INTO PostRelatedness (
+    INSERT INTO mews_app.PostRelatedness (
         post1_id,
         post2_id,
         rel_txt_wt, rel_txt_meta, 
@@ -141,8 +140,8 @@ def insertPostRelatedness(cursor, source, target, rw, rm, sw, sm, ow, om):
         ocr_wt, ocr_meta
     )
     VALUES (
-        (SELECT id FROM Posts WHERE scrape_id = %(source)s),
-        (SELECT id FROM Posts WHERE scrape_id = %(target)s),
+        (SELECT id FROM mews_app.Posts WHERE scrape_id = %(source)s),
+        (SELECT id FROM mews_app.Posts WHERE scrape_id = %(target)s),
         %(rw)s, %(rm)s, 
         %(sw)s, %(sm)s,
         %(ow)s, %(om)s
@@ -188,13 +187,13 @@ def insertPostCentrality(cursor, pid, score):
 
     # Query Structure
     sql = '''
-    INSERT INTO PostCentrality (
+    INSERT INTO mews_app.PostCentrality (
         post_id,
         score,
         evaluated
     )
     VALUES (
-        (SELECT id FROM Posts WHERE scrape_id = %(pid)s),
+        (SELECT id FROM mews_app.Posts WHERE scrape_id = %(pid)s),
         %(score)s,
         %(evaluated)s
     )
@@ -225,7 +224,7 @@ def syncGraph(fpath):
     posts, edges = load_json(fpath)
 
     # Connect to Mews-App
-    appConfig = loadConfig(APP_CONFIG_FILEPATH)
+    appConfig = loadConfig(MEWS_CONFIG_FILEPATH)
     appCnx = connectSQL(appConfig)
     appCursor = appCnx.cursor(dictionary=True)
 
