@@ -276,36 +276,48 @@ def getCentralPosts():
     cursor = cnx.cursor()
 
     # Get Timeline
-    upper_dt = request.args.get('upper', default = datetime.now())
-    lower_dt = request.args.get('lower', default = datetime.now() - timedelta(days=30))
+    upper_dt = request.args.get('upper', type=datetime, default = datetime.now())
+    lower_dt = request.args.get('lower', type=datetime, default = datetime.now() - timedelta(days=30))
 
     # Get Amount
-    skip = request.args.get('skip', default=0)
-    amount = request.args.get('amount', default=50)
+    skip = request.args.get('skip', type=int, default=0)
+    amount = request.args.get('amount', type=int, default=50)
 
     # Create Query
+    # Grabs 'amount' number of ordered central nodes within time frame, then grabs ...
+    # ... their post information, then grabs corresponding user info
     sql = '''
-    SELECT
-        id, image_url, post_url, 
-        reposts, replies, likes, 
-        when_posted, user_id,
-        score, evaluated
+    SELECT 
+        post.pid, post.image_url, post.post_url, 
+        post.reposts, post.replies, post.likes, 
+        post.when_posted, post.score, post.evaluated,
+        IFNULL(username, 'UNKNOWN'), IFNULL(platform, 'UNKNOWN')
     FROM
-        mews_app.Posts,
+        mews_app.Users,
         (SELECT
-            post_id, score, evaluated
+            id AS pid, image_url, post_url, 
+            reposts, replies, likes, 
+            when_posted, user_id,
+            score, evaluated
         FROM
-            mews_app.PostCentrality
+            mews_app.Posts,
+            (SELECT
+                post_id, score, evaluated
+            FROM
+                mews_app.PostCentrality
+            WHERE
+                evaluated BETWEEN %(lower_dt)s AND %(upper_dt)s
+            ORDER BY
+                score
+            DESC
+            LIMIT
+                %(amount)s
+            ) AS central
         WHERE
-            evaluated BETWEEN %(lower_dt)s AND %(upper_dt)s
-        ORDER BY
-            score
-        DESC
-        LIMIT
-            %(amount)s
-        ) AS central
+            central.post_id = id
+        ) AS post
     WHERE
-        central.post_id = id
+        post.user_id = id
     ;
     '''
 
@@ -322,7 +334,7 @@ def getCentralPosts():
     # Extract Information
     centralPosts = []
     for result in cursor.fetchall():
-        (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id, score, evaluated) = result
+        (post_id, image_url, post_url, reposts, replies, likes, when_posted, score, evaluated, username, platform) = result
         post = {
                 'id': post_id,
                 'image_url': image_url,
@@ -331,9 +343,10 @@ def getCentralPosts():
                 'replies': replies,
                 'likes': likes,
                 'when_posted': when_posted,
-                'user_id': user_id,
                 'score': score,
-                'evaluated': evaluated
+                'evaluated': evaluated,
+                'username': username,
+                'platform': platform
                 }
         centralPosts.append(post)
 
