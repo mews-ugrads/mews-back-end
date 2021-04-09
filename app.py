@@ -16,10 +16,14 @@ app = Flask(__name__)
 os.environ['FLASK_ENV'] = 'development'
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
+
+
 ### Constants
 
 MEWS_CONFIG_FILEPATH = 'config/mews.json'
 MEWSAPP_CONFIG_FILEPATH = 'config/mews-app.json'
+DB_CONFIG_FILEPATH = 'config/inter-mews.json'
+
 
 ### Functions
 
@@ -30,6 +34,7 @@ def loadConfig(filepath):
     """
     with open(filepath) as f:
         return json.load(f)
+
 
 ### API Routes
 
@@ -246,6 +251,95 @@ def getRelatedPosts(pid):
 
     # Return Results
     return jsonify(results)
+
+@app.route('/posts/central', methods=['GET'])
+def getCentralPosts():
+    """
+    @route   GET /posts/central
+    @desc    Returns the central posts
+    --
+    @param   skip   - number of posts to skip (int)
+    @param   amount - number of posts to return (int)
+    @param   lower  - lower bound for when_posted (datetime syntax)
+    @param   upper  - upper bound for when_posted (datetime syntax)
+    --
+    @return  list of central posts
+    """
+    # Grab Mews-App Config
+    config = loadConfig(DB_CONFIG_FILEPATH)
+
+    # Connect to Mews-App DB
+    try:
+        cnx = mysql.connector.connect(**config)
+    except mysql.connector.Error as err:
+        return jsonify({'error': 'Could not connect to DB'}), 400
+    cursor = cnx.cursor()
+
+    # Get Timeline
+    upper_dt = request.args.get('upper', default = datetime.now())
+    lower_dt = request.args.get('lower', default = datetime.now() - timedelta(days=30))
+
+    # Get Amount
+    skip = request.args.get('skip', default=0)
+    amount = request.args.get('amount', default=50)
+
+    # Create Query
+    sql = '''
+    SELECT
+        id, image_url, post_url, 
+        reposts, replies, likes, 
+        when_posted, user_id,
+        score, evaluated
+    FROM
+        mews_app.Posts,
+        (SELECT
+            post_id, score, evaluated
+        FROM
+            mews_app.PostCentrality
+        WHERE
+            evaluated BETWEEN %(lower_dt)s AND %(upper_dt)s
+        ORDER BY
+            score
+        DESC
+        LIMIT
+            %(amount)s
+        ) AS central
+    WHERE
+        central.post_id = id
+    ;
+    '''
+
+    # Create Query Args
+    args = {
+        'lower_dt': lower_dt,
+        'upper_dt': upper_dt,
+        'amount': amount
+    }
+    
+    # Perform Query
+    cursor.execute(sql, args)
+
+    # Extract Information
+    centralPosts = []
+    for result in cursor.fetchall():
+        (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id, score, evaluated) = result
+        post = {
+                'id': post_id,
+                'image_url': image_url,
+                'post_url': post_url,
+                'reposts': reposts,
+                'replies': replies,
+                'likes': likes,
+                'when_posted': when_posted,
+                'user_id': user_id,
+                'score': score,
+                'evaluated': evaluated
+                }
+        centralPosts.append(post)
+
+    cnx.close()
+
+    return jsonify(centralPosts)
 
 ### Main Execution
 
