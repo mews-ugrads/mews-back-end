@@ -61,12 +61,12 @@ def getTrending():
         return jsonify({'error': 'Could not connect to Mews-App DB'}), 400
 
     # Get Timeline
-    upper_dt = request.args.get('upper', default = datetime.now())
-    lower_dt = request.args.get('lower', default = datetime.now() - timedelta(days=30))
+    upper_dt = request.args.get('upper', type=datetime, default = datetime.now())
+    lower_dt = request.args.get('lower', type=datetime, default = datetime.now() - timedelta(days=30))
 
     # Get Amount
-    skip = request.args.get('skip', default=0)
-    amount = request.args.get('amount', default=50)
+    skip = request.args.get('skip', type=int, default=0)
+    amount = request.args.get('amount', type=int, default=50)
 
     # Define Equation
     trendingEquation ='(10 * reposts + 10 * replies + likes)'
