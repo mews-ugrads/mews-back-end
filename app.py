@@ -60,13 +60,18 @@ def getTrending():
     except mysql.connector.Error as err:
         return jsonify({'error': 'Could not connect to Mews-App DB'}), 400
 
-    # Get Timeline
+    # Get Request Arguments
     upper_dt = request.args.get('upper', type=datetime, default = datetime.now())
     lower_dt = request.args.get('lower', type=datetime, default = datetime.now() - timedelta(days=30))
-
-    # Get Amount
     skip = request.args.get('skip', type=int, default=0)
     amount = request.args.get('amount', type=int, default=50)
+
+    # Check Arguments
+    try:
+        assert(skip >= 0)
+        assert(amount >= 0)
+    except:
+        return jsonify({'error': 'Invalid argument(s).'}), 400
 
     # Define Equation
     trendingEquation ='(10 * reposts + 10 * replies + likes)'
@@ -275,13 +280,19 @@ def getCentralPosts():
         return jsonify({'error': 'Could not connect to DB'}), 400
     cursor = cnx.cursor()
 
-    # Get Timeline
+    # Get Request Arguments
     upper_dt = request.args.get('upper', type=datetime, default = datetime.now())
     lower_dt = request.args.get('lower', type=datetime, default = datetime.now() - timedelta(days=30))
-
-    # Get Amount
     skip = request.args.get('skip', type=int, default=0)
     amount = request.args.get('amount', type=int, default=50)
+
+    # Check Arguments
+    try:
+        assert(skip >= 0)
+        assert(amount >= 0)
+    except:
+        return jsonify({'error': 'Invalid argument(s).'}), 400
+    
 
     # Create Query
     # Grabs 'amount' number of ordered central nodes within time frame, then grabs ...
