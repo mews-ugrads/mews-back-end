@@ -19,20 +19,38 @@ import os
 
 ### Constants
 
+# Paths
 MEWS_CONFIG_FILEPATH = 'config/inter-mews.json'
-VERBOSE = True
+GRAPH_FOLDER = '/data/mews/images/mews_graph'
+LOG_FOLDER = '/data/mews/images/mews_graph/log'
+
+# Printing
+SILENCE_STDOUT = False  # To output to stdout or not
+PRESERVE_LOG = True     # To output to log or not
+LOG_FP = None           # Log file pointer
 
 
 ### Functions
 
-def vprint(s):
+def usage(code):
+    print(f'''Usage: {os.path.basename(sys.argv[0])} [-h -s -o LOGPATH]
+    -h              Help message
+    -s              Silence standard output
+    -n              No log file
+    -i  GRAPH_PATH  Input file path (default is file in {GRAPH_FOLDER}/)
+    -o  LOG_PATH    Specify log file path (default generates file in {LOG_FOLDER}/)''')
+    sys.exit(code)
+
+def logprint(s):
     '''
     @desc   Prints on VERBOSE mode
     --
     @param  s  String to print
     '''
-    global VERBOSE
-    if VERBOSE: print(s)
+    global PRESERVE_LOG, SILENCE_STDOUT, LOG_FP
+
+    if PRESERVE_LOG: print(s, file=LOG_FP)
+    if not SILENCE_STDOUT: print(s)
 
 
 def loadConfig(filepath):
@@ -41,21 +59,12 @@ def loadConfig(filepath):
     --
     @param  filepath  path to config file
     '''
-    with open(filepath) as f:
-        return json.load(f)
-
-
-def connectSQL(config):
-    '''
-    @desc   Connects to mysql
-    --
-    @param  config  mysql.connector config object
-    '''
     try:
-        return mysql.connector.connect(**config)
-    except mysql.connector.Error:
-        raise
-        return None
+        with open(filepath) as f:
+            return json.load(f)
+    except Exception as ex:
+        logprint(str(ex))
+        sys.exit(1)
 
 
 def load_json(fpath):
@@ -67,14 +76,22 @@ def load_json(fpath):
     @return  edges    dict with edge data
     '''
 
-    vprint(f'Loading in graph from "{fpath}"')
+    logprint(f'Loading in graph from "{fpath}"')
 
     # Grab JSON
-    with open(fpath) as f:
+    try:
+        f = open(fpath, mode='r')
         data = json.load(f)
+    except Exception as ex:
+        logprint(str(ex))
+        sys.exit(1)
 
-    posts = data['posts']
-    edges = data['edges']
+    try:
+        posts = data['posts']
+        edges = data['edges']
+    except Exception as ex:
+        logprint(str(ex))
+        sys.exit(1)
 
     return posts, edges
 
@@ -82,6 +99,9 @@ def load_json(fpath):
 def getSubimageWeightsMeta(edges, source, target):
     '''
     @desc  Returns subimage weight (float, else None) and metadata (string, else None)
+    --
+    @return  sw  represents subimage weights
+    @return  sm  represents subimage metadata
     '''
     sub_edges = edges[source][target].get('subimage', [])
     labels = []
@@ -92,30 +112,42 @@ def getSubimageWeightsMeta(edges, source, target):
             sw += tup[0]
             labels.append(tup[1])
         sm = '|'.join(labels)
+        if len(sm) == 0:
+            sm = None
     return sw, sm
 
 
 def getRelTxtWeightsMeta(posts, edges, source, target):
     '''
-    @desc  Returns rel-text weight (float, else None) and metadata (string, else None)
+    @desc    Returns rel-text weight (float, else None) and metadata (string, else None)
+    --
+    @return  rw  represents related_text weights
+    @return  rm  represents related_text metadata
     '''
     rw = edges[source][target].get('rel_text')
     rm = None
     if rw:
         rm = eval(posts[source].get('related_text', 'set()')).intersection(eval(posts[target].get('related_text', 'set()')))
         rm = '|'.join(rm)
+        if len(rm) == 0:
+            rm = None
     return rw, rm
 
 
 def getOcrWeightsMeta(posts, edges, source, target):
     '''
     @desc  Returns ocr weight (float, else None) and metadata (string, else None)
+    --
+    @return  ow  represents ocr weights
+    @return  om  represents ocr metadata
     '''
     ow = edges[source][target].get('ocr')
     om = None
     if ow:
         om = eval(posts[source].get('ocr', 'set()')).intersection(eval(posts[target].get('ocr', 'set()')))
         om = '|'.join(om)
+        if len(om) == 0:
+            om = None
     return ow, om
 
 
@@ -153,10 +185,10 @@ def insertPostRelatedness(cursor, source, target, rw, rm, sw, sm, ow, om):
     ;
     '''
 
-    vprint(f'Inserting Source: {source}; Target: {target}; Weights (r-s-o): {rw}-{sw}-{ow}')
-    vprint(f'  R Meta: {rm}')
-    vprint(f'  S Meta: {sm}')
-    vprint(f'  O Meta: {om}')
+    logprint(f'Inserting Source: {source}; Target: {target}; Weights (r-s-o): {rw}-{sw}-{ow}')
+    logprint(f'  R Meta: {rm}')
+    logprint(f'  S Meta: {sm}')
+    logprint(f'  O Meta: {om}')
 
     # Query Arguments
     args = {
@@ -203,7 +235,7 @@ def insertPostCentrality(cursor, pid, score):
     )
     ;
     '''
-    vprint(f'Inserting Centrality: {pid}; Score: {score}; evaluated: {evaluated}')
+    logprint(f'Inserting Centrality: {pid}; Score: {score}; evaluated: {evaluated}')
 
     # Query Arguments
     args = {
@@ -229,7 +261,12 @@ def syncGraph(fpath):
 
     # Connect to Mews-App
     appConfig = loadConfig(MEWS_CONFIG_FILEPATH)
-    appCnx = connectSQL(appConfig)
+    try:
+        appCnx = mysql.connector.connect(**appConfig)
+    except mysql.connector.Error as err:
+        logprint(str(err))
+        sys.exit(0)
+
     appCursor = appCnx.cursor(dictionary=True)
 
     # Insert Edges into DB
@@ -245,7 +282,7 @@ def syncGraph(fpath):
             try:
                 insertPostRelatedness(appCursor, source, target, rw, rm, sw, sm, ow, om)
             except Exception as ex:
-                print(ex)
+                logprint(str(ex))
                 continue
 
             appCnx.commit()
@@ -260,7 +297,7 @@ def syncGraph(fpath):
             try:
                 insertPostCentrality(appCursor, post, post_score)
             except Exception as ex:
-                print(ex)
+                logprint(str(ex))
                 continue
 
             appCnx.commit()
@@ -272,5 +309,51 @@ def syncGraph(fpath):
 ### Main Execution
 
 if __name__ == '__main__':
-    # @TODO: Grab graph file
-    syncGraph('./data/april_2.json')
+
+    # Variables
+    log_path = None
+    graph_path = None
+
+    # Parse Command Line
+    args = sys.argv[1:]
+    while len(args) and args[0].startswith('-') and len(args[0]) > 1:
+        arg = args.pop(0)
+        if arg == '-h':
+            usage(0)
+        elif arg == '-o':
+            log_path = args.pop(0)
+        elif arg == '-i':
+            graph_path = args.pop(0)
+        elif arg == '-s':
+            SILENCE_STDOUT = True
+        elif arg == '-n':
+            PRESERVE_LOG = False
+        else:
+            usage(1)
+
+    # Grab Today's Date
+    today = datetime.today().strftime('%Y_%-m_%-d')
+
+    # Initialize Log File
+    if log_path is None and PRESERVE_LOG is True:
+        log_path = LOG_FOLDER + '/syncGraph_' + str(today) + '.log'
+        try:
+            LOG_FP = open(log_path, mode='w')
+        except Exception as ex:
+            print(str(ex))
+            sys.exit(1)
+
+    # Print Log File
+    if PRESERVE_LOG is True:
+        logprint(f'Initialized Log File: {log_path}')
+
+    # Grab Today's Graph File
+    if graph_path is None:
+        graph_path = GRAPH_FOLDER + '/edges_data_' + str(today) + '.json'
+    logprint(f'Input Graph File: {graph_path}')
+
+    # Sync Graph to
+    syncGraph(graph_path)
+
+    # Exit
+    sys.exit(0)
