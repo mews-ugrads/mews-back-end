@@ -8,6 +8,7 @@ import mysql.connector
 import json
 import os
 from flask_cors import CORS, cross_origin
+from MewsUtils import Posts
 
 
 ### Globals
@@ -187,7 +188,7 @@ def getRelatedPosts(pid):
         return jsonify({'error': 'Invalid parameter `skip`'}), 400
 
     try:
-        amount = int(request.args.get('amount', 1))
+        amount = int(request.args.get('amount', 3))
         assert(amount >= 0)
     except:
         return jsonify({'error': 'Invalid parameter `amount`'}), 400
@@ -270,15 +271,34 @@ def getCentralPosts():
     --
     @return  list of central posts
     """
+
+    # Get Request Arguments
+    upper_dt = request.args.get('upper', type=datetime, default = datetime.now())
+    lower_dt = request.args.get('lower', type=datetime, default = datetime.now() - timedelta(days=30))
+    skip = request.args.get('skip', type=int, default=0)
+    amount = request.args.get('amount', type=int, default=3)
+
+    # Call Function
+    centralPosts, code = Posts.getCentralPosts(upper_dt, lower_dt, skip, amount)
+
+    return jsonify(centralPosts), code
+
+
+@app.route('/graph/central', methods=['GET'])
+def getCentralGraph():
+    """
+    @route   GET /graph/central
+    @desc    Returns the central posts
+    --
+    @param   skip   - number of posts to skip (int)
+    @param   amount - number of posts to return (int)
+    @param   lower  - lower bound for when_posted (datetime syntax)
+    @param   upper  - upper bound for when_posted (datetime syntax)
+    --
+    @return  list of central posts and related posts with links
+    """
     # Grab Mews-App Config
     config = loadConfig(DB_CONFIG_FILEPATH)
-
-    # Connect to Mews-App DB
-    try:
-        cnx = mysql.connector.connect(**config)
-    except mysql.connector.Error as err:
-        return jsonify({'error': 'Could not connect to DB'}), 400
-    cursor = cnx.cursor()
 
     # Get Request Arguments
     upper_dt = request.args.get('upper', type=datetime, default = datetime.now())
@@ -286,84 +306,29 @@ def getCentralPosts():
     skip = request.args.get('skip', type=int, default=0)
     amount = request.args.get('amount', type=int, default=50)
 
-    # Check Arguments
-    try:
-        assert(skip >= 0)
-        assert(amount >= 0)
-    except:
-        return jsonify({'error': 'Invalid argument(s).'}), 400
+    # Initialize Return Structure
+    output = { 'nodes': [], 'links': [] }
+
+    # Grab Central Posts
+    posts = json.loads(getCentralPosts())
+    for post in posts:
+        post['central'] = True
+        output['nodes'].append(post)
+        link = { 'source': post['id'], 'target': post['id'] }
+        output['links'].append(link)
+
+        # Grab Related Posts
+        relPosts = json.loads(getRelatedPosts(post['id']))
+        for neighbor in relPosts:
+            neighbor['central'] = False
+            output['nodes'].append(neighbor)
+            link = { 'source': post['id'], 'target': neighbor['id'] }
+            output['links'].append(link)
+    
+    return jsonify(output), 200
+
     
 
-    # Create Query
-    # Grabs 'amount' number of ordered central nodes within time frame, then grabs ...
-    # ... their post information, then grabs corresponding user info
-    sql = '''
-    SELECT 
-        post.pid, post.image_url, post.post_url, 
-        post.reposts, post.replies, post.likes, 
-        post.when_posted, post.score, post.evaluated,
-        IFNULL(username, 'UNKNOWN'), IFNULL(platform, 'UNKNOWN')
-    FROM
-        mews_app.Users,
-        (SELECT
-            id AS pid, image_url, post_url, 
-            reposts, replies, likes, 
-            when_posted, user_id,
-            score, evaluated
-        FROM
-            mews_app.Posts,
-            (SELECT
-                post_id, score, evaluated
-            FROM
-                mews_app.PostCentrality
-            WHERE
-                evaluated BETWEEN %(lower_dt)s AND %(upper_dt)s
-            ORDER BY
-                score
-            DESC
-            LIMIT
-                %(amount)s
-            ) AS central
-        WHERE
-            central.post_id = id
-        ) AS post
-    WHERE
-        post.user_id = id
-    ;
-    '''
-
-    # Create Query Args
-    args = {
-        'lower_dt': lower_dt,
-        'upper_dt': upper_dt,
-        'amount': amount
-    }
-    
-    # Perform Query
-    cursor.execute(sql, args)
-
-    # Extract Information
-    centralPosts = []
-    for result in cursor.fetchall():
-        (post_id, image_url, post_url, reposts, replies, likes, when_posted, score, evaluated, username, platform) = result
-        post = {
-                'id': post_id,
-                'image_url': image_url,
-                'post_url': post_url,
-                'reposts': reposts,
-                'replies': replies,
-                'likes': likes,
-                'when_posted': when_posted,
-                'score': score,
-                'evaluated': evaluated,
-                'username': username,
-                'platform': platform
-                }
-        centralPosts.append(post)
-
-    cnx.close()
-
-    return jsonify(centralPosts)
 
 ### Main Execution
 
