@@ -205,26 +205,7 @@ def insertPersonInPost(cursor, person_id, post_id):
     # Run Query
     cursor.execute(sql, args)    
 
-def insertPostRelatedness(cursor, post1_id, post2_id, weight):
-    # Query Structure
-    sql = '''
-    INSERT INTO PostRelatedness
-        (post1_id, post2_id, weight)
-    VALUES
-        (%(post1_id)s, %(post2_id)s, %(weight)s)
-    ON DUPLICATE KEY UPDATE weight=%(weight)s
-    ;
-    '''
 
-    # Query Arguments
-    args = {
-        'post1_id': post1_id, 
-        'post2_id': post2_id, 
-        'weight': weight
-    }
-
-    # Run Query
-    cursor.execute(sql, args)  
 
 def insertPost(cursor, srcPost):
     srcPost['user_id'] = insertUser(cursor, srcPost['platform'], srcPost['username'])
