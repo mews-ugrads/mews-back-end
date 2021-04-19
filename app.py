@@ -129,8 +129,8 @@ def getCentralGraph():
     upper_dt = request.args.get('upper', type=datetime, default = datetime.now())
     lower_dt = request.args.get('lower', type=datetime, default = datetime.now() - timedelta(days=30))
     skip = request.args.get('skip', type=int, default=0)
-    central_amount = request.args.get('amount', type=int, default=10)
-    rel_amount = request.args.get('amount', type=int, default=10)
+    central_amount = request.args.get('central_amount', type=int, default=10)
+    rel_amount = request.args.get('rel_amount', type=int, default=10)
 
     # Call Function
     graph, code = Graph.getCentralGraph(upper_dt, lower_dt, skip, central_amount, rel_amount)
