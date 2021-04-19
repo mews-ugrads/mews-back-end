@@ -1,12 +1,113 @@
 #!/usr/bin/env python3
 
+
+### Imports
+
 import json
 import os
 import mysql.connector
 from datetime import datetime, timedelta
 from . import Connection
 
-DB_CONFIG_FILEPATH = 'config/inter-mews.json'
+
+### Functions
+
+def getRelatedPosts(pid, skip, amount):
+
+    # parse args
+    try:
+        pid = int(pid)
+        assert(pid >= 0)
+    except:
+        return {'error': 'Invalid post id'}, 400
+
+    try:
+        assert(skip >= 0)
+    except:
+        return {'error': 'Invalid parameter `skip`'}, 400
+
+    try:
+        assert(amount >= 0)
+    except:
+        return {'error': 'Invalid parameter `amount`'}, 400
+
+    # Connect to DB
+    try:
+        cnx = mysql.connector.connect(**Connection.DB_CONFIG)
+    except mysql.connector.Error as err:
+        return {'error': 'Could not connect to DB'}, 400
+    cursor = cnx.cursor()
+
+    # Constants to be Tuned
+    REL_TXT_WEIGHT = 1
+    SUB_IMG_WEIGHT = 1
+    OCR_WEIGHT = 1
+
+    # Query Mews-App DB
+    cursor = cnx.cursor(dictionary=True)
+    query = '''
+        SELECT 
+            post1_id,
+            post2_id,
+            rel_txt_wt,
+            rel_txt_meta,
+            ocr_meta,
+            sub_img_wt,
+            ocr_wt,
+            ifnull(rel_txt_wt, 0) * %(rel_txt_wt)s + 
+            ifnull(sub_img_wt, 0) * %(sub_img_wt)s + 
+            ifnull(ocr_wt, 0) * %(ocr_wt)s 
+            as total_wt
+        FROM 
+            mews_app.PostRelatedness
+        WHERE
+            post1_id = %(post_id)s
+            OR
+            post2_id = %(post_id)s
+        ORDER BY
+            total_wt DESC
+        LIMIT
+            %(skip)s, %(amount)s 
+        ;
+    '''
+
+    # Arguments for Query
+    args = {
+        'rel_txt_wt': REL_TXT_WEIGHT,
+        'sub_img_wt': SUB_IMG_WEIGHT,
+        'ocr_wt': OCR_WEIGHT,
+        'post_id': pid,
+        'skip': skip,
+        'amount': amount
+    }
+
+    # Execute Query
+    cursor.execute(query, args)
+
+    # Process Results
+    results = []
+    for result in cursor.fetchall():
+        try:
+            # Find Non-Queried ID
+            pids = set([int(result['post1_id']), int(result['post2_id'])])
+            if (len(pids) == 1): continue
+            pids -= set([pid])
+            assert(len(pids) == 1)
+            del result['post1_id']
+            del result['post2_id']
+            result['id'] = list(pids)[0] 
+
+            results.append(result)
+        except:
+            pass
+
+    # Clean Up
+    cursor.close()
+    cnx.close()
+
+    # Return Results
+    return results, 200
+
 
 def getCentralPosts(upper_dt, lower_dt, skip, amount):
 
@@ -17,10 +118,7 @@ def getCentralPosts(upper_dt, lower_dt, skip, amount):
     except:
         return {'error': 'Invalid argument(s).'}, 400
 
-    # Grab Mews-App Config
-    # config = Connection.loadConfig(DB_CONFIG_FILEPATH)
-
-    # Connect to Mews-App DB
+    # Connect to DB
     try:
         cnx = mysql.connector.connect(**Connection.DB_CONFIG)
     except mysql.connector.Error as err:
