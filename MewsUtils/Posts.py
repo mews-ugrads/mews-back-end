@@ -12,6 +12,65 @@ from . import Connection
 
 ### Functions
 
+def getPost(pid):
+
+    # Check PID
+    try:
+        pid = int(pid)
+        assert(pid >= 0)
+    except:
+        return {'error': 'Invalid post id.'}, 400
+
+    # Connect to DB
+    try:
+        cnx = mysql.connector.connect(**Connection.DB_CONFIG)
+    except mysql.connector.Error as err:
+        return {'error': 'Could not connect to DB'}, 400
+    cursor = cnx.cursor()
+
+    # Format Query
+    sql = '''
+    SELECT
+        id, image_url,
+        post_url, reposts,
+        replies, likes,
+        when_posted, user_id,
+        related_text, ocr_text,
+        when_scraped, when_updated
+    FROM mews_app.Posts 
+    WHERE id = %(pid)s;
+    ;
+    '''
+    args = { 'pid': pid }
+
+    # Query DB
+    cursor.execute(sql, args)
+
+    # Extract Information
+    result = cursor.fetchone()
+    if result is None:
+        return {'error': 'Could not execute'}, 400
+
+    (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id, related_text, ocr_text, when_scraped, when_updated) = result
+    post = {
+            'id': post_id,
+            'image_url': image_url,
+            'post_url': post_url,
+            'reposts': reposts,
+            'replies': replies,
+            'likes': likes,
+            'when_posted': when_posted,
+            'user_id': user_id,
+            'related_text': related_text,
+            'ocr_text': ocr_text,
+            'when_scraped': when_scraped,
+            'when_updated': when_updated
+            }
+
+    cnx.close()
+
+    return post, 200
+
 def getRelatedPosts(pid, skip, amount):
 
     # parse args
