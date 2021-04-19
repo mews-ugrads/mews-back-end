@@ -44,7 +44,7 @@ def getTrending():
     # Call Internal Function
     trendPosts, code = Posts.getTrendingPosts(upper_dt, lower_dt, skip, amount)
 
-    return jsonify(trendPosts, code)
+    return jsonify(trendPosts), code
 
 
 @app.route('/posts/<pid>', methods=['GET'])
