@@ -8,7 +8,7 @@ import mysql.connector
 import json
 import os
 from flask_cors import CORS, cross_origin
-from MewsUtils import Posts
+from MewsUtils import Posts, Graph
 
 
 ### Globals
@@ -203,10 +203,11 @@ def getCentralGraph():
     @route   GET /graph/central
     @desc    Returns the central posts
     --
-    @param   skip   - number of posts to skip (int)
-    @param   amount - number of posts to return (int)
-    @param   lower  - lower bound for when_posted (datetime syntax)
-    @param   upper  - upper bound for when_posted (datetime syntax)
+    @param   skip           - number of posts to skip (int)
+    @param   central_amount - number of central posts to return (int)
+    @param   rel_amount     - number of related posts per central post to return (int)
+    @param   lower          - lower bound for when_posted (datetime syntax)
+    @param   upper          - upper bound for when_posted (datetime syntax)
     --
     @return  list of central posts and related posts with links
     """
@@ -215,10 +216,11 @@ def getCentralGraph():
     upper_dt = request.args.get('upper', type=datetime, default = datetime.now())
     lower_dt = request.args.get('lower', type=datetime, default = datetime.now() - timedelta(days=30))
     skip = request.args.get('skip', type=int, default=0)
-    amount = request.args.get('amount', type=int, default=50)
+    central_amount = request.args.get('amount', type=int, default=10)
+    rel_amount = request.args.get('amount', type=int, default=10)
 
     # Call Function
-    graph, code = Graph.getCentralGraph()
+    graph, code = Graph.getCentralGraph(upper_dt, lower_dt, skip, central_amount, rel_amount)
 
     return jsonify(graph), code
 
