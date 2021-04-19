@@ -149,7 +149,7 @@ def getPost(pid):
     return jsonify(post)
 
 
-@app.route('/related/<pid>', methods=['GET'])
+@app.route('/posts/<pid>/related', methods=['GET'])
 def getRelatedPosts(pid):
     """
     @route   GET /related/<pid>
