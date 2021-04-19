@@ -19,24 +19,6 @@ cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
 
-### Constants
-
-MEWS_CONFIG_FILEPATH = 'config/mews.json'
-MEWSAPP_CONFIG_FILEPATH = 'config/mews-app.json'
-DB_CONFIG_FILEPATH = 'config/inter-mews.json'
-
-
-### Functions
-
-def loadConfig(filepath):
-    """
-    @desc    Grabs JSON from file
-    @return  JSON from filepath
-    """
-    with open(filepath) as f:
-        return json.load(f)
-
-
 ### API Routes
 
 @app.route('/posts/trending', methods=['GET'])
@@ -52,14 +34,6 @@ def getTrending():
     --
     @return  list of trending posts
     """
-    # Grab Mews-App Config
-    mewsAppConfig = loadConfig(MEWSAPP_CONFIG_FILEPATH)
-
-    # Connect to Mews-App DB
-    try:
-        mewsAppCnx = mysql.connector.connect(**mewsAppConfig)
-    except mysql.connector.Error as err:
-        return jsonify({'error': 'Could not connect to Mews-App DB'}), 400
 
     # Get Request Arguments
     upper_dt = request.args.get('upper', type=datetime, default = datetime.now())
@@ -67,42 +41,11 @@ def getTrending():
     skip = request.args.get('skip', type=int, default=0)
     amount = request.args.get('amount', type=int, default=50)
 
-    # Check Arguments
-    try:
-        assert(skip >= 0)
-        assert(amount >= 0)
-    except:
-        return jsonify({'error': 'Invalid argument(s).'}), 400
+    # Call Internal Function
+    trendPosts, code = Posts.getTrendingPosts(upper_dt, lower_dt, skip, amount)
 
-    # Define Equation
-    trendingEquation ='(10 * reposts + 10 * replies + likes)'
+    return jsonify(trendPosts, code)
 
-    # Query Mews-App DB
-    mewsAppCursor = mewsAppCnx.cursor()
-    query = ("SELECT id, image_url, post_url, reposts, replies, likes, when_posted, user_id FROM Posts "
-    "WHERE when_posted BETWEEN %s AND %s "
-    "ORDER BY %s DESC LIMIT %s, %s;")
-    mewsAppCursor.execute(query, (lower_dt, upper_dt, trendingEquation, skip, amount))
-
-    # Extract Information
-    trendingPosts = []
-    for result in mewsAppCursor.fetchall():
-        (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id) = result
-        post = {
-                'id': post_id,
-                'image_url': image_url,
-                'post_url': post_url,
-                'reposts': reposts,
-                'replies': replies,
-                'likes': likes,
-                'when_posted': when_posted,
-                'user_id': user_id
-                }
-        trendingPosts.append(post)
-
-    mewsAppCnx.close()
-
-    return jsonify(trendingPosts)
 
 @app.route('/posts/<pid>', methods=['GET'])
 def getPost(pid):
@@ -171,7 +114,7 @@ def getCentralPosts():
 def getCentralGraph():
     """
     @route   GET /graph/central
-    @desc    Returns the central posts
+    @desc    Returns the central posts and related posts and links
     --
     @param   skip           - number of posts to skip (int)
     @param   central_amount - number of central posts to return (int)
@@ -193,8 +136,6 @@ def getCentralGraph():
     graph, code = Graph.getCentralGraph(upper_dt, lower_dt, skip, central_amount, rel_amount)
 
     return jsonify(graph), code
-
-    
 
 
 ### Main Execution

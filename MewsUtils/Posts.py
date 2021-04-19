@@ -12,6 +12,79 @@ from . import Connection
 
 ### Functions
 
+def getTrendingPosts(upper_dt, lower_dt, skip, amount):
+    # Check Arguments
+    try:
+        assert(skip >= 0)
+        assert(amount >= 0)
+    except:
+        return {'error': 'Invalid argument(s).'}, 400
+
+    # Define Equation
+    trendingEquation ='(10 * reposts + 10 * replies + likes)'
+
+    # Connect to DB
+    try:
+        cnx = mysql.connector.connect(**Connection.DB_CONFIG)
+    except mysql.connector.Error as err:
+        return {'error': 'Could not connect to DB'}, 400
+    cursor = cnx.cursor()
+
+    # Create Query
+    cursor = cnx.cursor()
+    sql = '''
+    SELECT
+        id, image_url,
+        post_url, reposts,
+        replies, likes,
+        when_posted, user_id,
+        related_text, ocr_text,
+        when_scraped, when_updated
+    FROM
+        mews_app.Posts
+    WHERE
+        when_posted BETWEEN %(lower_dt)s AND %(upper_dt)s 
+    ORDER BY
+        %(trendingEquation)s DESC
+    LIMIT 
+        %(skip)s, %(amount)s
+    ;
+    '''
+    args = {
+        'lower_dt': lower_dt,
+        'upper_dt': upper_dt,
+        'trendingEquation': trendingEquation,
+        'skip': skip,
+        'amount': amount
+    }
+
+    cursor.execute(sql, args)
+
+    # Extract Information
+    trendingPosts = []
+    for result in cursor.fetchall():
+        (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id, related_text, ocr_text, when_scraped, when_updated) = result
+        post = {
+            'id': post_id,
+            'image_url': image_url,
+            'post_url': post_url,
+            'reposts': reposts,
+            'replies': replies,
+            'likes': likes,
+            'when_posted': when_posted,
+            'user_id': user_id,
+            'related_text': related_text,
+            'ocr_text': ocr_text,
+            'when_scraped': when_scraped,
+            'when_updated': when_updated
+        }
+        trendingPosts.append(post)
+
+    cnx.close()
+
+    return trendingPosts, 200
+
+
 def getPost(pid):
 
     # Check PID
