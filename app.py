@@ -297,8 +297,6 @@ def getCentralGraph():
     --
     @return  list of central posts and related posts with links
     """
-    # Grab Mews-App Config
-    config = loadConfig(DB_CONFIG_FILEPATH)
 
     # Get Request Arguments
     upper_dt = request.args.get('upper', type=datetime, default = datetime.now())
@@ -306,26 +304,10 @@ def getCentralGraph():
     skip = request.args.get('skip', type=int, default=0)
     amount = request.args.get('amount', type=int, default=50)
 
-    # Initialize Return Structure
-    output = { 'nodes': [], 'links': [] }
+    # Call Function
+    graph, code = Graph.getCentralGraph()
 
-    # Grab Central Posts
-    posts = json.loads(getCentralPosts())
-    for post in posts:
-        post['central'] = True
-        output['nodes'].append(post)
-        link = { 'source': post['id'], 'target': post['id'] }
-        output['links'].append(link)
-
-        # Grab Related Posts
-        relPosts = json.loads(getRelatedPosts(post['id']))
-        for neighbor in relPosts:
-            neighbor['central'] = False
-            output['nodes'].append(neighbor)
-            link = { 'source': post['id'], 'target': neighbor['id'] }
-            output['links'].append(link)
-    
-    return jsonify(output), 200
+    return jsonify(graph), code
 
     
 
