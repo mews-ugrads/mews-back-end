@@ -15,6 +15,7 @@ def getCentralGraph(upper_dt, lower_dt, skip, central_amount, rel_amount):
     # Add Central Posts to Graph
     for post in posts:
         post['central'] = True
+        post['svg'] = post['image_url']
         output['nodes'].append(post)
         link = { 'source': post['id'], 'target': post['id'] }
         output['links'].append(link)
