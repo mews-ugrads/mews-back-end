@@ -365,6 +365,146 @@ def getCentralPosts():
 
     return jsonify(centralPosts)
 
+@app.route('/clusters/<cid>', methods=['GET'])
+def getClusters(cid):
+    # Grab Mews-App Config
+    config = loadConfig(DB_CONFIG_FILEPATH)
+
+    # Connect to Mews-App DB
+    try:
+        cnx = mysql.connector.connect(**config)
+    except mysql.connector.Error:
+        return jsonify({'error': 'Could not connect to DB'}), 400
+    cursor = cnx.cursor(dictionary=True)
+
+    sql = '''
+        SELECT
+            PostsInClusters.cluster_id as cluster_id,
+            PostsInClusters.post_id as post_id,
+            PostsInClusters.centrality as centrality
+        FROM
+            mews_app.Clusters,
+            mews_app.PostsInClusters
+        WHERE
+            Clusters.clustering_id = %(clustering_id)s
+            AND
+            PostsInClusters.cluster_id = Clusters.id
+        ;
+    '''
+
+    args = {
+        'clustering_id': cid
+    }
+
+    cursor.execute(sql, args)
+
+    clusters = {}
+    for row in cursor.fetchall():
+        clusters[row['cluster_id']] = clusters.get(row['cluster_id'], []) + [{'post_id': row['post_id'], 'centrality': row['centrality']}]
+    
+    sql = '''
+        SELECT 
+            image_url as svg,
+            post_url
+        FROM
+            mews_app.Posts
+        WHERE 
+            id = %(post_id)s
+        ;
+    '''
+
+    out = {'nodes':[], 'links':[]}
+    for cluster in clusters.values():
+        for post in cluster:
+            args = {
+                'post_id': post['post_id']
+            }
+
+            cursor.execute(sql, args)
+
+            result = cursor.fetchone()
+            result.update({'id': post['post_id'], 'centrality': post['centrality']})
+            out['nodes'].append(result)
+
+    most_central_post = {cluster_id: max(cluster, key=lambda p: p['centrality']) for cluster_id, cluster in clusters.items()}
+
+    sql = '''
+        SELECT
+            PostRelatedness.post1_id as post1_id,
+            PostRelatedness.post2_id as post2_id,
+            PostRelatedness.total_wt as weight
+        FROM
+            mews_app.Clusters,
+            mews_app.PostsInClusters as PostsInClusters1,
+            mews_app.PostsInClusters as PostsInClusters2,
+            mews_app.PostRelatedness
+        WHERE
+            Clusters.id = %(cluster_id)s
+            AND
+            PostsInClusters1.cluster_id = Clusters.id
+            AND
+            PostsInClusters2.cluster_id = Clusters.id
+            AND
+            PostRelatedness.post1_id = PostsInClusters1.post_id
+            AND
+            PostRelatedness.post2_id = PostsInClusters2.post_id
+        ;
+    '''
+
+    for cluster_id, cluster in clusters.items():
+        args = {
+            'cluster_id': cluster_id
+        }
+
+        cursor.execute(sql, args)
+
+        for edge in cursor.fetchall():
+            out['links'].append({'source': edge['post1_id'], 'target': edge['post2_id']})
+
+        representative_id = most_central_post[cluster_id]['post_id']
+        out['links'].append({'source': representative_id, 'target': representative_id})
+
+    cursor.close()
+    cnx.close()
+
+    return jsonify(out)
+
+@app.route('/clusters/recent', methods=['GET'])
+def getRecentClusters():
+    # Grab Mews-App Config
+    config = loadConfig(DB_CONFIG_FILEPATH)
+
+    # Connect to Mews-App DB
+    try:
+        cnx = mysql.connector.connect(**config)
+    except mysql.connector.Error:
+        return jsonify({'error': 'Could not connect to DB'}), 400
+    cursor = cnx.cursor(dictionary=True)
+
+    sql = '''
+        SELECT
+            id
+        FROM
+            mews_app.Clusterings
+        ORDER BY
+            when_created DESC
+        LIMIT 1
+        ;
+    '''
+
+    cursor.execute(sql)
+
+    result = cursor.fetchone()
+
+    cursor.close()
+    cnx.close()
+
+    if result is None:
+        return jsonify({'error': 'No cluster information available'}), 400
+    else:
+        cid = result['id']
+        return getClusters(cid)
+
 ### Main Execution
 
 if __name__ == "__main__":
