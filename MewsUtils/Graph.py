@@ -28,11 +28,13 @@ def getCentralGraph(upper_dt, lower_dt, skip, central_amount, rel_amount):
             return relPosts, code
 
         # Add Related Posts to Graph
+        # Note: We can add the link even if both nodes are central, but we don't want to ...
+        # ... submit multiple instances of same node with different `central` attribute
         for neighbor in relPosts:
+            link = { 'source': post['id'], 'target': neighbor['id'] }
+            output['links'].append(link)
             if neighbor['id'] in central: continue
             neighbor['central'] = False
             output['nodes'].append(neighbor)
-            link = { 'source': post['id'], 'target': neighbor['id'] }
-            output['links'].append(link)
 
     return output, 200
