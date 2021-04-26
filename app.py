@@ -455,6 +455,8 @@ def getClusters(cid):
             PostRelatedness.post1_id = PostsInClusters1.post_id
             AND
             PostRelatedness.post2_id = PostsInClusters2.post_id
+            AND
+            PostRelatedness.total_wt > 0
         ;
     '''
 
@@ -466,7 +468,7 @@ def getClusters(cid):
         cursor.execute(sql, args)
 
         for edge in cursor.fetchall():
-            out['links'].append({'source': edge['post1_id'], 'target': edge['post2_id']})
+            out['links'].append({'source': edge['post1_id'], 'target': edge['post2_id'], 'weight': edge['weight']})
 
         representative_id = most_central_post[cluster_id]['post_id']
         out['links'].append({'source': representative_id, 'target': representative_id})

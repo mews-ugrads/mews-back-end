@@ -6,8 +6,10 @@ import mysql.connector
 from datetime import datetime, timedelta
 from networkx.algorithms import community
 from networkx.algorithms import centrality
+from tqdm import tqdm
 import networkx as nx
 import json
+import sys
 
 ### Constants
 
@@ -51,7 +53,8 @@ def graph_from_db(cursor, begin_dt, end_dt):
             node1.when_posted BETWEEN %(begin_dt)s AND %(end_dt)s
             AND
             node2.when_posted BETWEEN %(begin_dt)s AND %(end_dt)s
-        LIMIT 1000
+            AND 
+            edge.total_wt > 0
         ;
     '''
 
@@ -178,18 +181,19 @@ def main():
     cursor = cnx.cursor(dictionary=True)
 
     # Load Graph
-    graph = graph_from_db(cursor, datetime.now() - timedelta(30), datetime.now())
+    graph = graph_from_db(cursor, datetime.now() - timedelta(365), datetime.now())
+    print(f'graph has {len(graph.nodes)} nodes, {len(graph.edges)} edges', file=sys.stderr)
   
     # Clusters to DB
     clustering_id = clustering_to_db(cursor, 'test')
-    for cluster in generate_clusters(graph):
+    for cluster in tqdm(generate_clusters(graph)):
         if len(cluster) <= 4: 
             # Not Useful
             continue
         centralities = cluster_centralities(graph, cluster)
 
         cluster_to_db(cursor, clustering_id, cluster, centralities)
-    cnx.commit()
+    # cnx.commit()
 
     # Clean Up
     cursor.close()
