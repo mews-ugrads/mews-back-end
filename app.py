@@ -377,8 +377,10 @@ def getClusters(cid):
         return jsonify({'error': 'Could not connect to DB'}), 400
     cursor = cnx.cursor(dictionary=True)
 
+    # Request Params
     amount = request.args.get('amount', type=int, default=-1)
 
+    # Query Nodes
     sql = '''
         SELECT
             PostsInClusters.cluster_id as cluster_id,
@@ -400,15 +402,18 @@ def getClusters(cid):
 
     cursor.execute(sql, args)
 
+    # Format Clusters
     clusters = {}
     for row in cursor.fetchall():
         clusters[row['cluster_id']] = clusters.get(row['cluster_id'], []) + [{'post_id': row['post_id'], 'centrality': row['centrality']}]
     
+    # Limit (Sorted) Clusters
     clusters = list(sorted(clusters.items(), key=lambda t: len(t[1]), reverse=True))
     if amount is not None and len(clusters) > amount:
         clusters = clusters[:amount]
     clusters = dict(clusters)
 
+    # Query Post Information
     sql = '''
         SELECT 
             image_url as svg,
@@ -420,6 +425,7 @@ def getClusters(cid):
         ;
     '''
 
+    # Get Information for Each Post, Add to Output
     out = {'nodes':[], 'links':[]}
     for cluster in clusters.values():
         for post in cluster:
@@ -433,8 +439,10 @@ def getClusters(cid):
             result.update({'id': post['post_id'], 'centrality': post['centrality']})
             out['nodes'].append(result)
 
+    # Determine Central Post of Each Cluster
     most_central_post = {cluster_id: max(cluster, key=lambda p: p['centrality']) for cluster_id, cluster in clusters.items()}
 
+    # Query Edges
     sql = '''
         SELECT
             PostRelatedness.post1_id as post1_id,
@@ -460,6 +468,7 @@ def getClusters(cid):
         ;
     '''
 
+    # Add Edges To Output
     for cluster_id, cluster in clusters.items():
         args = {
             'cluster_id': cluster_id
@@ -473,6 +482,7 @@ def getClusters(cid):
         representative_id = most_central_post[cluster_id]['post_id']
         out['links'].append({'source': representative_id, 'target': representative_id})
 
+    # Clean Up
     cursor.close()
     cnx.close()
 
@@ -490,6 +500,7 @@ def getRecentClusters():
         return jsonify({'error': 'Could not connect to DB'}), 400
     cursor = cnx.cursor(dictionary=True)
 
+    # Query ID of Most Recent Clustering
     sql = '''
         SELECT
             id
@@ -505,9 +516,11 @@ def getRecentClusters():
 
     result = cursor.fetchone()
 
+    # Clean Up
     cursor.close()
     cnx.close()
 
+    # Determine Results
     if result is None:
         return jsonify({'error': 'No cluster information available'}), 400
     else:
