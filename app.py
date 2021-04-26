@@ -377,6 +377,8 @@ def getClusters(cid):
         return jsonify({'error': 'Could not connect to DB'}), 400
     cursor = cnx.cursor(dictionary=True)
 
+    amount = request.args.get('amount', type=int, default=-1)
+
     sql = '''
         SELECT
             PostsInClusters.cluster_id as cluster_id,
@@ -402,6 +404,11 @@ def getClusters(cid):
     for row in cursor.fetchall():
         clusters[row['cluster_id']] = clusters.get(row['cluster_id'], []) + [{'post_id': row['post_id'], 'centrality': row['centrality']}]
     
+    clusters = list(sorted(clusters.items(), key=lambda t: len(t[1]), reverse=True))
+    if amount is not None and len(clusters) > amount:
+        clusters = clusters[:amount]
+    clusters = dict(clusters)
+
     sql = '''
         SELECT 
             image_url as svg,
