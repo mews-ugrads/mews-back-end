@@ -36,13 +36,13 @@ def getTrending():
     """
 
     # Get Request Arguments
-    upper_dt = request.args.get('upper', type=datetime, default = datetime.now())
-    lower_dt = request.args.get('lower', type=datetime, default = datetime.now() - timedelta(days=30))
+    upper = request.args.get('upper', type=str, default = str(datetime.now()))
+    lower = request.args.get('lower', type=str, default = str(datetime.now() - timedelta(days=30)))
     skip = request.args.get('skip', type=int, default=0)
-    amount = request.args.get('amount', type=int, default=50)
+    amount = request.args.get('amount', type=int, default=10)
 
     # Call Internal Function
-    trendPosts, code = Posts.getTrendingPosts(upper_dt, lower_dt, skip, amount)
+    trendPosts, code = Posts.getTrendingPosts(upper, lower, skip, amount)
 
     return jsonify(trendPosts), code
 
@@ -99,13 +99,13 @@ def getCentralPosts():
     """
 
     # Get Request Arguments
-    upper_dt = request.args.get('upper', type=datetime, default = datetime.now())
-    lower_dt = request.args.get('lower', type=datetime, default = datetime.now() - timedelta(days=30))
+    upper = request.args.get('upper', type=str, default = str(datetime.now()))
+    lower = request.args.get('lower', type=str, default = str(datetime.now() - timedelta(days=30)))
     skip = request.args.get('skip', type=int, default=0)
     amount = request.args.get('amount', type=int, default=3)
 
     # Call Function
-    centralPosts, code = Posts.getCentralPosts(upper_dt, lower_dt, skip, amount)
+    centralPosts, code = Posts.getCentralPosts(upper, lower, skip, amount)
 
     return jsonify(centralPosts), code
 
@@ -126,14 +126,14 @@ def getCentralGraph():
     """
 
     # Get Request Arguments
-    upper_dt = request.args.get('upper', type=datetime, default = datetime.now())
-    lower_dt = request.args.get('lower', type=datetime, default = datetime.now() - timedelta(days=30))
+    upper = request.args.get('upper', type=str, default = str(datetime.now()))
+    lower = request.args.get('lower', type=str, default = str(datetime.now() - timedelta(days=30)))
     skip = request.args.get('skip', type=int, default=0)
     central_amount = request.args.get('central_amount', type=int, default=10)
     rel_amount = request.args.get('rel_amount', type=int, default=10)
 
     # Call Function
-    graph, code = Graph.getCentralGraph(upper_dt, lower_dt, skip, central_amount, rel_amount)
+    graph, code = Graph.getCentralGraph(upper, lower, skip, central_amount, rel_amount)
 
     return jsonify(graph), code
 

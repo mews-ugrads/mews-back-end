@@ -2,13 +2,13 @@
 
 from . import Posts
 
-def getCentralGraph(upper_dt, lower_dt, skip, central_amount, rel_amount):
+def getCentralGraph(upper, lower, skip, central_amount, rel_amount):
 
     # Initialize Return Structure
     output = { 'nodes': [], 'links': [] }
 
     # Call Central Posts
-    posts, code = Posts.getCentralPosts(upper_dt, lower_dt, skip, central_amount)
+    posts, code = Posts.getCentralPosts(upper, lower, skip, central_amount)
     if code != 200:
         return posts, code
 
