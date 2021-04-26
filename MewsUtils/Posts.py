@@ -7,16 +7,19 @@ import json
 import os
 import mysql.connector
 from datetime import datetime, timedelta
+import dateutil.parser as dt
 from . import Connection
 
 
 ### Functions
 
-def getTrendingPosts(upper_dt, lower_dt, skip, amount):
+def getTrendingPosts(upper, lower, skip, amount):
     # Check Arguments
     try:
         assert(skip >= 0)
         assert(amount >= 0)
+        upper_dt = dt.parse(upper)
+        lower_dt = dt.parse(lower)
     except:
         return {'error': 'Invalid argument(s).'}, 400
 
@@ -251,12 +254,14 @@ def getRelatedPosts(pid, skip, amount):
     return results, 200
 
 
-def getCentralPosts(upper_dt, lower_dt, skip, amount):
+def getCentralPosts(upper, lower, skip, amount):
 
     # Check Arguments
     try:
         assert(skip >= 0)
         assert(amount >= 0)
+        upper_dt = dt.parse(upper)
+        lower_dt = dt.parse(lower)
     except:
         return {'error': 'Invalid argument(s).'}, 400
 
