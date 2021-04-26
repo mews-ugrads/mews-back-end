@@ -13,12 +13,14 @@ def getCentralGraph(upper_dt, lower_dt, skip, central_amount, rel_amount):
         return posts, code
 
     # Add Central Posts to Graph
+    central = set()
     for post in posts:
         post['central'] = True
         post['svg'] = post['image_url']
         output['nodes'].append(post)
         link = { 'source': post['id'], 'target': post['id'] }
         output['links'].append(link)
+        central.add(post['id'])
 
         # Call Related Posts
         relPosts, code = Posts.getRelatedPosts(post['id'], skip, rel_amount)
@@ -27,6 +29,7 @@ def getCentralGraph(upper_dt, lower_dt, skip, central_amount, rel_amount):
 
         # Add Related Posts to Graph
         for neighbor in relPosts:
+            if neighbor['id'] in central: continue
             neighbor['central'] = False
             output['nodes'].append(neighbor)
             link = { 'source': post['id'], 'target': neighbor['id'] }
