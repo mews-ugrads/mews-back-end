@@ -193,6 +193,7 @@ def getRelatedPosts(pid, skip, amount):
             B.ocr_meta,
             B.sub_img_wt,
             B.ocr_wt,
+            B.scaled_sub_img_wt,
             B.total_wt
         FROM 
             mews_app.Posts AS A,
@@ -205,10 +206,8 @@ def getRelatedPosts(pid, skip, amount):
                 ocr_meta,
                 sub_img_wt,
                 ocr_wt,
-                ifnull(rel_txt_wt, 0) * %(rel_txt_wt)s + 
-                ifnull(sub_img_wt, 0) * %(sub_img_wt)s + 
-                ifnull(ocr_wt, 0) * %(ocr_wt)s 
-                AS total_wt
+                scaled_sub_img_wt,
+                total_wt
             FROM 
                 mews_app.PostRelatedness
             WHERE
