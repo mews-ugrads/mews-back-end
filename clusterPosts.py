@@ -193,7 +193,7 @@ def main():
         centralities = cluster_centralities(graph, cluster)
 
         cluster_to_db(cursor, clustering_id, cluster, centralities)
-    # cnx.commit()
+    cnx.commit()
 
     # Clean Up
     cursor.close()
