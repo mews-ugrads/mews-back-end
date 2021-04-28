@@ -7,16 +7,19 @@ import json
 import os
 import mysql.connector
 from datetime import datetime, timedelta
+import dateutil.parser as dt
 from . import Connection
 
 
 ### Functions
 
-def getTrendingPosts(upper_dt, lower_dt, skip, amount):
+def getTrendingPosts(upper, lower, skip, amount):
     # Check Arguments
     try:
         assert(skip >= 0)
         assert(amount >= 0)
+        upper_dt = dt.parse(upper)
+        lower_dt = dt.parse(lower)
     except:
         return {'error': 'Invalid argument(s).'}, 400
 
@@ -178,28 +181,46 @@ def getRelatedPosts(pid, skip, amount):
     # Query Mews-App DB
     cursor = cnx.cursor(dictionary=True)
     query = '''
-        SELECT 
-            post1_id,
-            post2_id,
-            rel_txt_wt,
-            rel_txt_meta,
-            ocr_meta,
-            sub_img_wt,
-            ocr_wt,
-            ifnull(rel_txt_wt, 0) * %(rel_txt_wt)s + 
-            ifnull(sub_img_wt, 0) * %(sub_img_wt)s + 
-            ifnull(ocr_wt, 0) * %(ocr_wt)s 
-            as total_wt
+        SELECT
+            A.id, A.image_url,
+            A.post_url, A.reposts,
+            A.replies, A.likes,
+            A.when_posted, A.user_id,
+            A.related_text, A.ocr_text,
+            A.when_scraped, A.when_updated,
+            B.rel_txt_wt,
+            B.rel_txt_meta,
+            B.ocr_meta,
+            B.sub_img_wt,
+            B.ocr_wt,
+            B.scaled_sub_img_wt,
+            B.total_wt
         FROM 
-            mews_app.PostRelatedness
+            mews_app.Posts AS A,
+            (SELECT 
+                post1_id,
+                post2_id,
+                IF(post1_id = %(post_id)s, post2_id, post1_id) AS rel_id,
+                rel_txt_wt,
+                rel_txt_meta,
+                ocr_meta,
+                sub_img_wt,
+                ocr_wt,
+                scaled_sub_img_wt,
+                total_wt
+            FROM 
+                mews_app.PostRelatedness
+            WHERE
+                post1_id = %(post_id)s
+                OR
+                post2_id = %(post_id)s
+            ORDER BY
+                total_wt DESC
+            LIMIT
+                %(skip)s, %(amount)s 
+            ) AS B
         WHERE
-            post1_id = %(post_id)s
-            OR
-            post2_id = %(post_id)s
-        ORDER BY
-            total_wt DESC
-        LIMIT
-            %(skip)s, %(amount)s 
+            A.id = B.rel_id
         ;
     '''
 
@@ -220,15 +241,6 @@ def getRelatedPosts(pid, skip, amount):
     results = []
     for result in cursor.fetchall():
         try:
-            # Find Non-Queried ID
-            pids = set([int(result['post1_id']), int(result['post2_id'])])
-            if (len(pids) == 1): continue
-            pids -= set([pid])
-            assert(len(pids) == 1)
-            del result['post1_id']
-            del result['post2_id']
-            result['id'] = list(pids)[0] 
-
             results.append(result)
         except:
             pass
@@ -241,12 +253,14 @@ def getRelatedPosts(pid, skip, amount):
     return results, 200
 
 
-def getCentralPosts(upper_dt, lower_dt, skip, amount):
+def getCentralPosts(upper, lower, skip, amount):
 
     # Check Arguments
     try:
         assert(skip >= 0)
         assert(amount >= 0)
+        upper_dt = dt.parse(upper)
+        lower_dt = dt.parse(lower)
     except:
         return {'error': 'Invalid argument(s).'}, 400
 
