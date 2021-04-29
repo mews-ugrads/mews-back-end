@@ -141,7 +141,7 @@ def getCentralGraph():
 @app.route('/clusters/<cid>', methods=['GET'])
 def getClusters(cid):
     # Request Params
-    amount = request.args.get('amount', type=int, default=-1)
+    amount = request.args.get('amount', type=int, default=10)
 
     return Clusters.getClusters(cid, amount)
 
