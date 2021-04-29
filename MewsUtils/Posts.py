@@ -34,7 +34,6 @@ def getTrendingPosts(upper, lower, skip, amount):
     cursor = cnx.cursor()
 
     # Create Query
-    cursor = cnx.cursor()
     sql = '''
     SELECT
         id, image_url,
