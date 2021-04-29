@@ -34,6 +34,7 @@ def getTrendingPosts(upper, lower, skip, amount):
     cursor = cnx.cursor()
 
     # Create Query
+    cursor = cnx.cursor()
     sql = '''
     SELECT
         id, image_url,
@@ -68,7 +69,7 @@ def getTrendingPosts(upper, lower, skip, amount):
         (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id, related_text, ocr_text, when_scraped, when_updated) = result
         post = {
             'id': post_id,
-            'image_url': image_url,
+            'image_url': f'/posts/{post_id}/image',
             'post_url': post_url,
             'reposts': reposts,
             'replies': replies,
@@ -129,7 +130,7 @@ def getPost(pid):
     (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id, related_text, ocr_text, when_scraped, when_updated) = result
     post = {
             'id': post_id,
-            'image_url': image_url,
+            'image_url': f'/posts/{post_id}/image',
             'post_url': post_url,
             'reposts': reposts,
             'replies': replies,
@@ -240,6 +241,7 @@ def getRelatedPosts(pid, skip, amount):
     results = []
     for result in cursor.fetchall():
         try:
+            result['image_url'] = f'/posts/{pid}/image'
             results.append(result)
         except:
             pass
@@ -324,7 +326,7 @@ def getCentralPosts(upper, lower, skip, amount):
         (post_id, image_url, post_url, reposts, replies, likes, when_posted, score, evaluated, username, platform) = result
         post = {
                 'id': post_id,
-                'image_url': image_url,
+                'image_url': f'/posts/{post_id}/image',
                 'post_url': post_url,
                 'reposts': reposts,
                 'replies': replies,

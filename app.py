@@ -8,7 +8,7 @@ import mysql.connector
 import json
 import os
 from flask_cors import CORS, cross_origin
-from MewsUtils import Posts, Graph, Clusters
+from MewsUtils import Posts, Graph, Clusters, Images
 
 
 ### Globals
@@ -154,6 +154,10 @@ def getRecentClusters():
     else:
         cid = result['id']
         return getClusters(cid)
+
+@app.route('/posts/<pid>/image', methods=['GET'])
+def getPostImage(pid):
+    return Images.getPostImage(pid)
 
 ### Main Execution
 

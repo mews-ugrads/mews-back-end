@@ -89,7 +89,6 @@ def getClusters(cid, amount):
     # Query Post Information
     sql = '''
         SELECT 
-            image_url as svg,
             post_url
         FROM
             mews_app.Posts
@@ -109,7 +108,7 @@ def getClusters(cid, amount):
             cursor.execute(sql, args)
 
             result = cursor.fetchone()
-            result.update({'id': post['post_id'], 'centrality': post['centrality']})
+            result.update({'id': post['post_id'], 'centrality': post['centrality'], 'svg': f'/posts/{post["post_id"]}/image'})
             out['nodes'].append(result)
 
     # Determine Central Post of Each Cluster
