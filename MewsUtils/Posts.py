@@ -143,6 +143,24 @@ def getPost(pid):
             'when_updated': when_updated
             }
 
+    sql = '''
+    SELECT DISTINCT sub_img_meta
+    FROM mews_app.PostRelatedness
+    WHERE post1_id = %(pid)s
+    ;
+    '''
+    args = { 'pid': pid }
+
+    # Query DB
+    cursor.execute(sql, args)
+
+    boxes = []
+    for result in cursor.fetchall():
+        (box,) = result
+        boxes.append(box)
+
+    post['boxes'] = boxes
+        
     cnx.close()
 
     return post, 200
