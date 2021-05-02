@@ -13,7 +13,7 @@ from . import Connection
 
 ### Functions
 
-def getTrendingPosts(upper, lower, skip, amount):
+def getTrendingPosts(upper, lower, skip, amount, getBoxes):
     # Check Arguments
     try:
         assert(skip >= 0)
@@ -82,6 +82,26 @@ def getTrendingPosts(upper, lower, skip, amount):
             'when_updated': when_updated
         }
         trendingPosts.append(post)
+
+    # Get Boxes for Each Post
+    if getBoxes is True:
+        for post in trendingPosts:
+
+            sql = '''
+            SELECT DISTINCT sub_img_meta
+            FROM mews_app.PostRelatedness
+            WHERE post1_id = %(pid)s
+            ;
+            '''
+            args = { 'pid': post['id'] }
+            cursor.execute(sql, args)
+
+            boxes = []
+            for result in cursor.fetchall():
+                (box,) = result
+                boxes.append(box)
+
+            post['boxes'] = boxes
 
     cnx.close()
 

@@ -40,9 +40,10 @@ def getTrending():
     lower = request.args.get('lower', type=str, default = str(datetime.now() - timedelta(days=30)))
     skip = request.args.get('skip', type=int, default=0)
     amount = request.args.get('amount', type=int, default=10)
+    getBoxes = request.args.get('getBoxes', type=bool, default=False)
 
     # Call Internal Function
-    trendPosts, code = Posts.getTrendingPosts(upper, lower, skip, amount)
+    trendPosts, code = Posts.getTrendingPosts(upper, lower, skip, amount, getBoxes)
 
     return jsonify(trendPosts), code
 
