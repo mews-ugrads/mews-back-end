@@ -27,10 +27,11 @@ def getTrending():
     @route   GET /posts/trending
     @desc    Returns the trending posts within timeline
     --
-    @param   skip   - number of posts to skip (int)
-    @param   amount - number of posts to return (int)
-    @param   lower  - lower bound for when_posted (datetime syntax)
-    @param   upper  - upper bound for when_posted (datetime syntax)
+    @param   skip      - number of posts to skip (int)
+    @param   amount    - number of posts to return (int)
+    @param   lower     - lower bound for when_posted (datetime syntax)
+    @param   upper     - upper bound for when_posted (datetime syntax)
+    @param   getBoxes  - bool to get bounding boxes or not (takes longer to get boxes, so false by default)
     --
     @return  list of trending posts
     """
