@@ -8,7 +8,7 @@ import mysql.connector
 import json
 import os
 from flask_cors import CORS, cross_origin
-from MewsUtils import Posts, Graph, Clusters
+from MewsUtils import Posts, Graph, Clusters, Images
 
 
 ### Globals
@@ -31,6 +31,7 @@ def getTrending():
     @param   amount - number of posts to return (int)
     @param   lower  - lower bound for when_posted (datetime syntax)
     @param   upper  - upper bound for when_posted (datetime syntax)
+    @param   getBoxes  - bool to get bounding boxes or not (takes longer to get boxes, so false by default)
     @param   search - search term with which to filter posts
     --
     @return  list of trending posts
@@ -41,10 +42,11 @@ def getTrending():
     lower = request.args.get('lower', type=str, default = str(datetime.now() - timedelta(days=30)))
     skip = request.args.get('skip', type=int, default=0)
     amount = request.args.get('amount', type=int, default=10)
+    getBoxes = request.args.get('getBoxes', type=bool, default=False)
     searchTerm = request.args.get('search', type=str, default=None)
 
     # Call Internal Function
-    trendPosts, code = Posts.getTrendingPosts(upper, lower, skip, amount, searchTerm)
+    trendPosts, code = Posts.getTrendingPosts(upper, lower, skip, amount, getBoxes, searchTerm)
 
     return jsonify(trendPosts), code
 
@@ -157,6 +159,9 @@ def getRecentClusters():
         cid = result['id']
         return getClusters(cid)
 
+@app.route('/posts/<pid>/image', methods=['GET'])
+def getPostImage(pid):
+    return Images.getPostImage(pid)
 
 ### Main Execution
 

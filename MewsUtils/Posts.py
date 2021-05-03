@@ -13,7 +13,7 @@ from . import Connection
 
 ### Functions
 
-def getTrendingPosts(upper, lower, skip, amount, searchTerm=None):
+def getTrendingPosts(upper, lower, skip, amount, getBoxes, searchTerm=None):
     # Check Arguments
     try:
         assert(skip >= 0)
@@ -34,6 +34,7 @@ def getTrendingPosts(upper, lower, skip, amount, searchTerm=None):
     cursor = cnx.cursor()
 
     # Create Query
+    cursor = cnx.cursor()
     sql = '''
     SELECT
         id, image_url,
@@ -78,7 +79,7 @@ def getTrendingPosts(upper, lower, skip, amount, searchTerm=None):
         (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id, related_text, ocr_text, when_scraped, when_updated) = result
         post = {
             'id': post_id,
-            'image_url': image_url,
+            'image_url': f'/posts/{post_id}/image',
             'post_url': post_url,
             'reposts': reposts,
             'replies': replies,
@@ -91,6 +92,26 @@ def getTrendingPosts(upper, lower, skip, amount, searchTerm=None):
             'when_updated': when_updated
         }
         trendingPosts.append(post)
+
+    # Get Boxes for Each Post
+    if getBoxes is True:
+        for post in trendingPosts:
+
+            sql = '''
+            SELECT DISTINCT sub_img_meta
+            FROM mews_app.PostRelatedness
+            WHERE post1_id = %(pid)s
+            ;
+            '''
+            args = { 'pid': post['id'] }
+            cursor.execute(sql, args)
+
+            boxes = []
+            for result in cursor.fetchall():
+                (box,) = result
+                boxes.append(box)
+
+            post['boxes'] = boxes
 
     cnx.close()
 
@@ -139,7 +160,7 @@ def getPost(pid):
     (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id, related_text, ocr_text, when_scraped, when_updated) = result
     post = {
             'id': post_id,
-            'image_url': image_url,
+            'image_url': f'/posts/{post_id}/image',
             'post_url': post_url,
             'reposts': reposts,
             'replies': replies,
@@ -152,6 +173,24 @@ def getPost(pid):
             'when_updated': when_updated
             }
 
+    sql = '''
+    SELECT DISTINCT sub_img_meta
+    FROM mews_app.PostRelatedness
+    WHERE post1_id = %(pid)s
+    ;
+    '''
+    args = { 'pid': pid }
+
+    # Query DB
+    cursor.execute(sql, args)
+
+    boxes = []
+    for result in cursor.fetchall():
+        (box,) = result
+        boxes.append(box)
+
+    post['boxes'] = boxes
+        
     cnx.close()
 
     return post, 200
@@ -250,6 +289,7 @@ def getRelatedPosts(pid, skip, amount):
     results = []
     for result in cursor.fetchall():
         try:
+            result['image_url'] = f'/posts/{pid}/image'
             results.append(result)
         except:
             pass
@@ -334,7 +374,7 @@ def getCentralPosts(upper, lower, skip, amount):
         (post_id, image_url, post_url, reposts, replies, likes, when_posted, score, evaluated, username, platform) = result
         post = {
                 'id': post_id,
-                'image_url': image_url,
+                'image_url': f'/posts/{post_id}/image',
                 'post_url': post_url,
                 'reposts': reposts,
                 'replies': replies,
