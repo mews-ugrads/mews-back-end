@@ -13,7 +13,7 @@ from . import Connection
 
 ### Functions
 
-def getTrendingPosts(upper, lower, skip, amount):
+def getTrendingPosts(upper, lower, skip, amount, searchTerm=None):
     # Check Arguments
     try:
         assert(skip >= 0)
@@ -46,6 +46,14 @@ def getTrendingPosts(upper, lower, skip, amount):
         mews_app.Posts
     WHERE
         when_posted BETWEEN %(lower_dt)s AND %(upper_dt)s 
+        AND 
+        (
+            %(search_disabled)s 
+            OR 
+            related_text LIKE CONCAT('%', %(search_term)s, '%') 
+            OR 
+            ocr_text LIKE CONCAT('%', %(search_term)s, '%')
+        )
     ORDER BY
         %(trendingEquation)s DESC
     LIMIT 
@@ -57,7 +65,9 @@ def getTrendingPosts(upper, lower, skip, amount):
         'upper_dt': upper_dt,
         'trendingEquation': trendingEquation,
         'skip': skip,
-        'amount': amount
+        'amount': amount,
+        'search_disabled': searchTerm is None,
+        'search_term': searchTerm if searchTerm else ''
     }
 
     cursor.execute(sql, args)
