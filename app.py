@@ -27,10 +27,11 @@ def getTrending():
     @route   GET /posts/trending
     @desc    Returns the trending posts within timeline
     --
-    @param   skip   - number of posts to skip (int)
-    @param   amount - number of posts to return (int)
-    @param   lower  - lower bound for when_posted (datetime syntax)
-    @param   upper  - upper bound for when_posted (datetime syntax)
+    @param   skip      - number of posts to skip (int)
+    @param   amount    - number of posts to return (int)
+    @param   lower     - lower bound for when_posted (datetime syntax)
+    @param   upper     - upper bound for when_posted (datetime syntax)
+    @param   getBoxes  - bool to get bounding boxes or not (takes longer to get boxes, so false by default)
     --
     @return  list of trending posts
     """
@@ -40,9 +41,10 @@ def getTrending():
     lower = request.args.get('lower', type=str, default = str(datetime.now() - timedelta(days=30)))
     skip = request.args.get('skip', type=int, default=0)
     amount = request.args.get('amount', type=int, default=10)
+    getBoxes = request.args.get('getBoxes', type=bool, default=False)
 
     # Call Internal Function
-    trendPosts, code = Posts.getTrendingPosts(upper, lower, skip, amount)
+    trendPosts, code = Posts.getTrendingPosts(upper, lower, skip, amount, getBoxes)
 
     return jsonify(trendPosts), code
 
