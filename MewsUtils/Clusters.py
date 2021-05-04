@@ -7,7 +7,7 @@ import json
 import os
 import mysql.connector
 from flask import jsonify
-from . import Connection
+from . import Connection, Images
 
 ### Functions
 
@@ -108,7 +108,7 @@ def getClusters(cid, amount):
             cursor.execute(sql, args)
 
             result = cursor.fetchone()
-            result.update({'id': post['post_id'], 'centrality': post['centrality'], 'svg': f'/posts/{post["post_id"]}/image'})
+            result.update({'id': post['post_id'], 'centrality': post['centrality'], 'svg': Images.getImageURL(post["post_id"])})
             out['nodes'].append(result)
 
     # Determine Central Post of Each Cluster

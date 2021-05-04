@@ -6,10 +6,13 @@
 import json
 import os
 import mysql.connector
-from flask import jsonify, send_file, abort
+from flask import jsonify, send_file, abort, request
 from . import Connection
 
 ### Functions
+
+def getImageURL(pid):
+    return f'{request.url_root}/posts/{pid}/image'
 
 def getPostImage(pid):
     # Connect to DB

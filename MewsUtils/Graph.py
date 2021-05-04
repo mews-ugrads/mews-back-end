@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from . import Posts
+from . import Posts, Images
 
 def getCentralGraph(upper, lower, skip, central_amount, rel_amount):
 
@@ -16,7 +16,7 @@ def getCentralGraph(upper, lower, skip, central_amount, rel_amount):
     central = set()
     for post in posts:
         post['central'] = True
-        post['svg'] = f'/posts/{post["id"]}/image'
+        post['svg'] = Images.getImageURL(post["id"])
         output['nodes'].append(post)
         link = { 'source': post['id'], 'target': post['id'] }
         output['links'].append(link)

@@ -8,7 +8,7 @@ import os
 import mysql.connector
 from datetime import datetime, timedelta
 import dateutil.parser as dt
-from . import Connection
+from . import Connection, Images
 
 
 ### Functions
@@ -69,7 +69,7 @@ def getTrendingPosts(upper, lower, skip, amount, getBoxes):
         (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id, related_text, ocr_text, when_scraped, when_updated) = result
         post = {
             'id': post_id,
-            'image_url': f'/posts/{post_id}/image',
+            'image_url': Images.getImageURL(post_id),
             'post_url': post_url,
             'reposts': reposts,
             'replies': replies,
@@ -150,7 +150,7 @@ def getPost(pid):
     (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id, related_text, ocr_text, when_scraped, when_updated) = result
     post = {
             'id': post_id,
-            'image_url': f'/posts/{post_id}/image',
+            'image_url': Images.getImageURL(post_id),
             'post_url': post_url,
             'reposts': reposts,
             'replies': replies,
@@ -279,7 +279,7 @@ def getRelatedPosts(pid, skip, amount):
     results = []
     for result in cursor.fetchall():
         try:
-            result['image_url'] = f'/posts/{pid}/image'
+            result['image_url'] = Images.getImageURL(pid)
             results.append(result)
         except:
             pass
@@ -364,7 +364,7 @@ def getCentralPosts(upper, lower, skip, amount):
         (post_id, image_url, post_url, reposts, replies, likes, when_posted, score, evaluated, username, platform) = result
         post = {
                 'id': post_id,
-                'image_url': f'/posts/{post_id}/image',
+                'image_url': Images.getImageURL(post_id),
                 'post_url': post_url,
                 'reposts': reposts,
                 'replies': replies,
