@@ -12,7 +12,7 @@ from . import Connection
 ### Functions
 
 def getImageURL(pid):
-    return f'{request.url_root}/posts/{pid}/image'
+    return f'{request.url_root}posts/{pid}/image'
 
 def getPostImage(pid):
     # Connect to DB
