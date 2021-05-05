@@ -70,6 +70,7 @@ def getTrendingPosts(upper, lower, skip, amount, getBoxes):
         post = {
             'id': post_id,
             'image_url': Images.getImageURL(post_id),
+            'heatmap_url': Images.getHeatmapURL(post_id),
             'post_url': post_url,
             'reposts': reposts,
             'replies': replies,
@@ -151,6 +152,7 @@ def getPost(pid):
     post = {
             'id': post_id,
             'image_url': Images.getImageURL(post_id),
+            'heatmap_url': Images.getHeatmapURL(post_id),
             'post_url': post_url,
             'reposts': reposts,
             'replies': replies,
@@ -365,6 +367,7 @@ def getCentralPosts(upper, lower, skip, amount):
         post = {
                 'id': post_id,
                 'image_url': Images.getImageURL(post_id),
+                'heatmap_url': Images.getHeatmapURL(post_id),
                 'post_url': post_url,
                 'reposts': reposts,
                 'replies': replies,
