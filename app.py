@@ -163,6 +163,10 @@ def getRecentClusters():
 def getPostImage(pid):
     return Images.getPostImage(pid)
 
+@app.route('/posts/<pid>/heatmap', methods=['GET'])
+def getPostHeatmap(pid):
+    return Images.getPostHeatmap(pid)
+
 ### Main Execution
 
 if __name__ == "__main__":
