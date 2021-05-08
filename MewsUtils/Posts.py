@@ -13,7 +13,7 @@ from . import Connection, Images
 
 ### Functions
 
-def getTrendingPosts(upper, lower, skip, amount, getBoxes):
+def getTrendingPosts(upper, lower, skip, amount, getBoxes, searchTerm=None):
     # Check Arguments
     try:
         assert(skip >= 0)
@@ -56,6 +56,14 @@ def getTrendingPosts(upper, lower, skip, amount, getBoxes):
         when_posted BETWEEN %(lower_dt)s AND %(upper_dt)s 
         AND
         Posts.user_id = Users.id
+        AND 
+        (
+            %(search_disabled)s 
+            OR 
+            related_text LIKE CONCAT('%', %(search_term)s, '%') 
+            OR 
+            ocr_text LIKE CONCAT('%', %(search_term)s, '%')
+        )
     ORDER BY
         %(trendingEquation)s DESC
     LIMIT 
@@ -67,7 +75,9 @@ def getTrendingPosts(upper, lower, skip, amount, getBoxes):
         'upper_dt': upper_dt,
         'trendingEquation': trendingEquation,
         'skip': skip,
-        'amount': amount
+        'amount': amount,
+        'search_disabled': searchTerm is None,
+        'search_term': searchTerm if searchTerm else ''
     }
 
     cursor.execute(sql, args)
@@ -76,6 +86,7 @@ def getTrendingPosts(upper, lower, skip, amount, getBoxes):
     trendingPosts = []
     for post in cursor.fetchall():
         post['image_url'] = Images.getImageURL(post['id'])
+        post['heatmap_url'] = Images.getHeatmapURL(post['id'])
         trendingPosts.append(post)
 
     # Get Boxes for Each Post
@@ -155,6 +166,7 @@ def getPost(pid):
         return {'error': 'Could not execute'}, 400
 
     post['image_url'] = Images.getImageURL(post['id'])
+    post['heatmap_url'] = Images.getHeatmapURL(post['id'])
 
     sql = '''
     SELECT DISTINCT sub_img_meta
@@ -379,6 +391,7 @@ def getCentralPosts(upper, lower, skip, amount):
     centralPosts = []
     for post in cursor.fetchall():
         post['image_url'] = Images.getImageURL(post['id']),
+        post['heatmap_url'] = Images.getHeatmapURL(post['id'])
         centralPosts.append(post)
 
     cnx.close()
