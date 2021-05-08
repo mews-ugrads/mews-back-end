@@ -31,22 +31,31 @@ def getTrendingPosts(upper, lower, skip, amount, getBoxes):
         cnx = mysql.connector.connect(**Connection.DB_CONFIG)
     except mysql.connector.Error as err:
         return {'error': 'Could not connect to DB'}, 400
-    cursor = cnx.cursor()
+    cursor = cnx.cursor(dictionary=True)
 
     # Create Query
-    cursor = cnx.cursor()
     sql = '''
     SELECT
-        id, image_url,
-        post_url, reposts,
-        replies, likes,
-        when_posted, user_id,
-        related_text, ocr_text,
-        when_scraped, when_updated
+        Posts.id as id, 
+        post_url, 
+        reposts,
+        replies, 
+        likes,
+        when_posted, 
+        user_id,
+        related_text, 
+        ocr_text,
+        when_scraped, 
+        when_updated,
+        platform,
+        username
     FROM
-        mews_app.Posts
+        mews_app.Posts,
+        mews_app.Users
     WHERE
         when_posted BETWEEN %(lower_dt)s AND %(upper_dt)s 
+        AND
+        Posts.user_id = Users.id
     ORDER BY
         %(trendingEquation)s DESC
     LIMIT 
@@ -65,22 +74,8 @@ def getTrendingPosts(upper, lower, skip, amount, getBoxes):
 
     # Extract Information
     trendingPosts = []
-    for result in cursor.fetchall():
-        (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id, related_text, ocr_text, when_scraped, when_updated) = result
-        post = {
-            'id': post_id,
-            'image_url': Images.getImageURL(post_id),
-            'post_url': post_url,
-            'reposts': reposts,
-            'replies': replies,
-            'likes': likes,
-            'when_posted': when_posted,
-            'user_id': user_id,
-            'related_text': related_text,
-            'ocr_text': ocr_text,
-            'when_scraped': when_scraped,
-            'when_updated': when_updated
-        }
+    for post in cursor.fetchall():
+        post['image_url'] = Images.getImageURL(post['id'])
         trendingPosts.append(post)
 
     # Get Boxes for Each Post
@@ -122,19 +117,31 @@ def getPost(pid):
         cnx = mysql.connector.connect(**Connection.DB_CONFIG)
     except mysql.connector.Error as err:
         return {'error': 'Could not connect to DB'}, 400
-    cursor = cnx.cursor()
+    cursor = cnx.cursor(dictionary=True)
 
     # Format Query
     sql = '''
     SELECT
-        id, image_url,
-        post_url, reposts,
-        replies, likes,
-        when_posted, user_id,
-        related_text, ocr_text,
-        when_scraped, when_updated
-    FROM mews_app.Posts 
-    WHERE id = %(pid)s;
+        Posts.id as id, 
+        post_url, 
+        reposts,
+        replies, 
+        likes,
+        when_posted, 
+        user_id,
+        related_text, 
+        ocr_text,
+        when_scraped, 
+        when_updated,
+        platform,
+        username
+    FROM 
+        mews_app.Posts,
+        mews_app.Users
+    WHERE 
+        Posts.id = %(pid)s
+        AND
+        Posts.user_id = Users.id
     ;
     '''
     args = { 'pid': pid }
@@ -143,25 +150,11 @@ def getPost(pid):
     cursor.execute(sql, args)
 
     # Extract Information
-    result = cursor.fetchone()
-    if result is None:
+    post = cursor.fetchone()
+    if post is None:
         return {'error': 'Could not execute'}, 400
 
-    (post_id, image_url, post_url, reposts, replies, likes, when_posted, user_id, related_text, ocr_text, when_scraped, when_updated) = result
-    post = {
-            'id': post_id,
-            'image_url': Images.getImageURL(post_id),
-            'post_url': post_url,
-            'reposts': reposts,
-            'replies': replies,
-            'likes': likes,
-            'when_posted': when_posted,
-            'user_id': user_id,
-            'related_text': related_text,
-            'ocr_text': ocr_text,
-            'when_scraped': when_scraped,
-            'when_updated': when_updated
-            }
+    post['image_url'] = Images.getImageURL(post['id'])
 
     sql = '''
     SELECT DISTINCT sub_img_meta
@@ -220,21 +213,30 @@ def getRelatedPosts(pid, skip, amount):
     cursor = cnx.cursor(dictionary=True)
     query = '''
         SELECT
-            A.id, A.image_url,
-            A.post_url, A.reposts,
-            A.replies, A.likes,
-            A.when_posted, A.user_id,
-            A.related_text, A.ocr_text,
-            A.when_scraped, A.when_updated,
+            A.id as id, 
+            A.image_url,
+            A.post_url, 
+            A.reposts,
+            A.replies, 
+            A.likes,
+            A.when_posted, 
+            A.user_id,
+            A.related_text, 
+            A.ocr_text,
+            A.when_scraped, 
+            A.when_updated,
             B.rel_txt_wt,
             B.rel_txt_meta,
             B.ocr_meta,
             B.sub_img_wt,
             B.ocr_wt,
             B.scaled_sub_img_wt,
-            B.total_wt
+            B.total_wt,
+            username,
+            platform
         FROM 
             mews_app.Posts AS A,
+            mews_app.Users,
             (SELECT 
                 post1_id,
                 post2_id,
@@ -259,6 +261,8 @@ def getRelatedPosts(pid, skip, amount):
             ) AS B
         WHERE
             A.id = B.rel_id
+            AND
+            A.user_id = Users.id
         ;
     '''
 
@@ -308,24 +312,37 @@ def getCentralPosts(upper, lower, skip, amount):
         cnx = mysql.connector.connect(**Connection.DB_CONFIG)
     except mysql.connector.Error as err:
         return {'error': 'Could not connect to DB'}, 400
-    cursor = cnx.cursor()
+    cursor = cnx.cursor(dictionary=True)
 
     # Create Query
     # Grabs 'amount' number of ordered central nodes within time frame, then grabs ...
     # ... their post information, then grabs corresponding user info
     sql = '''
     SELECT 
-        post.pid, post.image_url, post.post_url, 
-        post.reposts, post.replies, post.likes, 
-        post.when_posted, post.score, post.evaluated,
-        IFNULL(username, 'UNKNOWN'), IFNULL(platform, 'UNKNOWN')
+        post.id as id, 
+        post.image_url, 
+        post.post_url, 
+        post.reposts, 
+        post.replies, 
+        post.likes, 
+        post.when_posted, 
+        post.score, 
+        post.evaluated,
+        username,
+        platform
     FROM
         mews_app.Users,
         (SELECT
-            id AS pid, image_url, post_url, 
-            reposts, replies, likes, 
-            when_posted, user_id,
-            score, evaluated
+            id, 
+            image_url, 
+            post_url, 
+            reposts, 
+            replies, 
+            likes, 
+            when_posted, 
+            user_id,
+            score, 
+            evaluated
         FROM
             mews_app.Posts,
             (SELECT
@@ -360,21 +377,8 @@ def getCentralPosts(upper, lower, skip, amount):
 
     # Extract Information
     centralPosts = []
-    for result in cursor.fetchall():
-        (post_id, image_url, post_url, reposts, replies, likes, when_posted, score, evaluated, username, platform) = result
-        post = {
-                'id': post_id,
-                'image_url': Images.getImageURL(post_id),
-                'post_url': post_url,
-                'reposts': reposts,
-                'replies': replies,
-                'likes': likes,
-                'when_posted': when_posted,
-                'score': score,
-                'evaluated': evaluated,
-                'username': username,
-                'platform': platform
-                }
+    for post in cursor.fetchall():
+        post['image_url'] = Images.getImageURL(post['id']),
         centralPosts.append(post)
 
     cnx.close()
