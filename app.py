@@ -3,7 +3,7 @@
 ### Imports
 
 from flask import Flask, request, jsonify
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import mysql.connector
 import json
 import os
@@ -147,15 +147,11 @@ def getClusters(cid):
 
     return Clusters.getClusters(cid, amount)
 
-@app.route('/clusters/recent', methods=['GET'])
-def getRecentClusters():
-    result, code = Clusters.getRecentClusterId()
-
-    if code != 200:
-        return result, code
-    else:
-        cid = result['id']
-        return getClusters(cid)
+@app.route('/clusters/daily', methods=['GET'])
+def getDailyClusters():
+    amount = request.args.get('amount', type=int, default=10)
+    day = request.args.get('day', type=str, default=date.today().strftime('%Y-%m-%d'))
+    return Clusters.getDailyClusters(day, amount)
 
 @app.route('/posts/<pid>/image', methods=['GET'])
 def getPostImage(pid):
