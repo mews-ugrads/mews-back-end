@@ -24,7 +24,7 @@ def getTrendingPosts(upper, lower, skip, amount, getBoxes, searchTerm=None):
         return {'error': 'Invalid argument(s).'}, 400
 
     # Define Equation
-    trendingEquation ='(10 * reposts + 10 * replies + likes)'
+    trendingEquation ='(LOG(reposts + 1) + LOG(replies + 1) + LOG(likes + 1) / 2 - DATEDIFF(CURDATE(), when_posted))'
 
     # Connect to DB
     try:
@@ -34,7 +34,7 @@ def getTrendingPosts(upper, lower, skip, amount, getBoxes, searchTerm=None):
     cursor = cnx.cursor(dictionary=True)
 
     # Create Query
-    sql = '''
+    sql = f'''
     SELECT
         Posts.id as id, 
         post_url, 
@@ -48,7 +48,8 @@ def getTrendingPosts(upper, lower, skip, amount, getBoxes, searchTerm=None):
         when_scraped, 
         when_updated,
         platform,
-        username
+        username,
+        {trendingEquation} as score
     FROM
         mews_app.Posts,
         mews_app.Users
@@ -65,7 +66,7 @@ def getTrendingPosts(upper, lower, skip, amount, getBoxes, searchTerm=None):
             ocr_text LIKE CONCAT('%', %(search_term)s, '%')
         )
     ORDER BY
-        %(trendingEquation)s DESC
+        {trendingEquation} DESC
     LIMIT 
         %(skip)s, %(amount)s
     ;
@@ -94,17 +95,26 @@ def getTrendingPosts(upper, lower, skip, amount, getBoxes, searchTerm=None):
         for post in trendingPosts:
 
             sql = '''
-            SELECT DISTINCT sub_img_meta
-            FROM mews_app.PostRelatedness
-            WHERE post1_id = %(pid)s
+            SELECT 
+                sub_img_meta as coords,
+                IF(post1_id=%(pid)s, post2_id, post1_id) as other_post_id
+            FROM 
+                mews_app.PostRelatedness
+            WHERE
+                (
+                    post1_id = %(pid)s
+                    OR 
+                    post2_id = %(pid)s
+                )
+                AND
+                sub_img_meta IS NOT NULL
             ;
             '''
             args = { 'pid': post['id'] }
             cursor.execute(sql, args)
 
             boxes = []
-            for result in cursor.fetchall():
-                (box,) = result
+            for box in cursor.fetchall():
                 boxes.append(box)
 
             post['boxes'] = boxes
