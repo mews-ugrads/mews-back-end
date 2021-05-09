@@ -104,7 +104,7 @@ def getTrendingPosts(upper, lower, skip, amount, getBoxes, searchTerm=None):
 
             boxes = []
             for result in cursor.fetchall():
-                (box,) = result
+                box = result['sub_img_meta']
                 boxes.append(box)
 
             post['boxes'] = boxes
@@ -172,6 +172,7 @@ def getPost(pid):
     SELECT DISTINCT sub_img_meta
     FROM mews_app.PostRelatedness
     WHERE post1_id = %(pid)s
+    AND sub_img_meta IS NOT NULL
     ;
     '''
     args = { 'pid': pid }
@@ -181,7 +182,7 @@ def getPost(pid):
 
     boxes = []
     for result in cursor.fetchall():
-        (box,) = result
+        box = result['sub_img_meta']
         boxes.append(box)
 
     post['boxes'] = boxes
