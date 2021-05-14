@@ -81,27 +81,67 @@ def graph_from_db(cursor, begin_dt, end_dt):
 
     return graph
 
-def clustering_to_db(cursor, description):
+def daily_to_db(cursor, clustering_id, day):
     # Query
     sql = '''
+        DELETE FROM
+            mews_app.DailyClusterings
+        WHERE
+            day=%(day)s
+        LIMIT 1
+        ;
+    '''
+
+    # Arguments
+    args = {
+        'day': day
+    }
+
+    # Run Query
+    cursor.execute(sql, args)
+
+    sql = '''
         INSERT INTO
-            mews_app.Clusterings
+            mews_app.DailyClusterings
         (
-            when_created,
-            description
+            day,
+            clustering_id
         )
         VALUES
         (
-            %(when_created)s,
-            %(description)s
+            %(day)s,
+            %(clustering_id)s
         )
         ;
     '''
 
     # Arguments
     args = {
-        'when_created':datetime.now(),
-        'description': description
+        'day': day,
+        'clustering_id': clustering_id
+    }
+
+    # Run Query
+    cursor.execute(sql, args)
+
+def clustering_to_db(cursor):
+    # Query
+    sql = '''
+        INSERT INTO
+            mews_app.Clusterings
+        (
+            when_created
+        )
+        VALUES
+        (
+            %(when_created)s
+        )
+        ;
+    '''
+
+    # Arguments
+    args = {
+        'when_created': datetime.now()
     }
 
     # Run Query
@@ -175,17 +215,43 @@ def cluster_centralities(graph, cluster):
     return centrality.betweenness_centrality(graph.subgraph(cluster), weight='weight')
 
 def main():
+    begin_dt = None
+    end_dt = None 
+    daily_dt = None   
+
+    args = sys.argv[1:]
+    date_format = '%Y-%m-%d'
+    while len(args):
+        arg = args.pop(0)
+        if arg in ['--begin']:
+            arg = args.pop(0)
+            begin_dt = datetime.strptime(arg, date_format)
+        elif arg in ['--end']:
+            arg = args.pop(0)
+            end_dt = datetime.strptime(arg, date_format)
+        elif arg in ['--daily']:
+            arg = args.pop(0)
+            daily_dt = datetime.strptime(arg, date_format)
+            if begin_dt is None:
+                begin_dt = daily_dt - timedelta(6)
+            if end_dt is None:
+                end_dt = daily_dt + timedelta(1)
+
+    if begin_dt is None or end_dt is None:
+        print('please provide date range (--begin and --end, or --daily)', file=sys.stderr)
+        exit(-1)
+
     # Grab Mews Config
     config = loadConfig(MEWS_CONFIG_FILEPATH)
     cnx = connectSQL(config)
     cursor = cnx.cursor(dictionary=True)
 
     # Load Graph
-    graph = graph_from_db(cursor, datetime.now() - timedelta(365), datetime.now())
+    graph = graph_from_db(cursor, begin_dt, end_dt)
     print(f'graph has {len(graph.nodes)} nodes, {len(graph.edges)} edges', file=sys.stderr)
   
     # Clusters to DB
-    clustering_id = clustering_to_db(cursor, 'test')
+    clustering_id = clustering_to_db(cursor)
     for cluster in tqdm(generate_clusters(graph)):
         if len(cluster) <= 4: 
             # Not Useful
@@ -193,6 +259,8 @@ def main():
         centralities = cluster_centralities(graph, cluster)
 
         cluster_to_db(cursor, clustering_id, cluster, centralities)
+    if daily_dt is not None:
+        daily_to_db(cursor, clustering_id, daily_dt)
     cnx.commit()
 
     # Clean Up

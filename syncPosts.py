@@ -334,8 +334,7 @@ def pullPosts(cursor):
     # Fetch Post Data
     post = cursor.fetchone()
     while post is not None:
-        post = cursor.fetchone()
-         # Transform Post Data
+        # Transform Post Data
         results = {
             'post_url': post['url'], 
             'image_url': post['image_url'], 
@@ -345,17 +344,17 @@ def pullPosts(cursor):
             'when_posted': post['when_posted'],
             'when_scraped': post['when_scraped'],
             'when_updated': post['when_scraped2'],
-            'related_text': post['related_text'].encode().decode('unicode_escape'),
+            'related_text': post['related_text'],
             'ocr_text': post['ocr_text'],
             'image_directory': post['original_img_dir'],
             'image_filename': post['original_img_filename'],
             'scrape_id': post['pic_id'],
-            'hashtags': set(hashtag.encode().decode('unicode_escape') for hashtag in re.split(r',| |, |\|', post['hashtags'])),
+            'hashtags': set(re.split(r',| |, |\|', post['hashtags'])),
             'platform': post['platform'],
-            'username': post['platform_username'].encode().decode('unicode_escape')
+            'username': post['platform_username']
         } 
-
         yield results
+        post = cursor.fetchone()
 
 def syncImages():
     # Connect to Mews DB

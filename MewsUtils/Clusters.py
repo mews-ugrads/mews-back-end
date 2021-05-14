@@ -11,7 +11,7 @@ from . import Connection, Images
 
 ### Functions
 
-def getRecentClusterId():
+def getDailyClusters(day, amount):
      # Connect to DB
     try:
         cnx = mysql.connector.connect(**Connection.DB_CONFIG)
@@ -19,19 +19,20 @@ def getRecentClusterId():
         return {'error': 'Could not connect to DB'}, 400
     cursor = cnx.cursor(dictionary=True)
 
-    # Query ID of Most Recent Clustering
+    # Query ID of Relevant Clustering
     sql = '''
         SELECT
-            id
+            clustering_id
         FROM
-            mews_app.Clusterings
-        ORDER BY
-            when_created DESC
-        LIMIT 1
+            mews_app.DailyClusterings
+        WHERE
+            day=%(day)s
         ;
     '''
 
-    cursor.execute(sql)
+    args = {'day': day}
+
+    cursor.execute(sql, args)
 
     result = cursor.fetchone()
 
@@ -43,7 +44,7 @@ def getRecentClusterId():
     if result is None:
         return {'error': 'No cluster information available'}, 400
     else:
-        return result, 200
+        return getClusters(result['clustering_id'], amount), 200
 
 def getClusters(cid, amount):
     # Connect to Mews-App DB
