@@ -9,7 +9,7 @@
 
 ### Imports
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 import mysql.connector
 import json
@@ -331,8 +331,8 @@ if __name__ == '__main__':
         else:
             usage(1)
 
-    # Grab Today's Date
-    today = datetime.today().strftime('%Y_%-m_%-d')
+    # Grab Yesterday's Date
+    today = (datetime.today() - timedelta(1)).strftime('%Y_%-m_%-d')
 
     # Initialize Log File
     if log_path is None and PRESERVE_LOG is True:
